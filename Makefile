@@ -86,26 +86,20 @@ create-deps: check-existing-riglet
 	@echo "Set/update INTEGRATION env SSM parameters: /${OWNER}/${PROJECT}/env/integration"
 	@read -p 'Integration Aurora Database Master Password: (<ENTER> will keep existing) ' DB_MASTER_PASSWORD; \
 	        [ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/integration/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (integration)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite
-	@read -p 'Integration Bookit Database User Password (make same as above): (<ENTER> will keep existing) ' BOOKIT_DATABASE_PASSWORD; \
-	        [ -z $$BOOKIT_DATABASE_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/integration/BOOKIT_DATABASE_PASSWORD" --description "Bookit Database User Password (integration)" --type "SecureString" --value "$$BOOKIT_DATABASE_PASSWORD" --overwrite
-	@read -p 'Integration Bookit App Admin/Basic Auth User Password (set to "password" or E2E tests will fail): (<ENTER> will keep existing) ' BOOKIT_ADMIN_PASSWORD; \
-	        [ -z $$BOOKIT_ADMIN_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/integration/BOOKIT_ADMIN_PASSWORD" --description "Bookit Admin User Password (integration)" --type "SecureString" --value "$$BOOKIT_ADMIN_PASSWORD" --overwrite
+	@read -p 'Integration Application Database User Password (make same as above): (<ENTER> will keep existing) ' APPLICATION_DATABASE_PASSWORD; \
+	        [ -z $$APPLICATION_DATABASE_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/integration/APPLICATION_DATABASE_PASSWORD" --description "Application Database User Password (integration)" --type "SecureString" --value "$$APPLICATION_DATABASE_PASSWORD" --overwrite
 	@echo ""
 	@echo "Set/update STAGING env SSM parameters: /${OWNER}/${PROJECT}/env/staging"
 	@read -p 'Staging Aurora Database Master Password: (<ENTER> will keep existing) ' DB_MASTER_PASSWORD; \
 	        [ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/staging/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (staging)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite
-	@read -p 'Staging Bookit Database User Password (make same as above): (<ENTER> will keep existing) ' BOOKIT_DATABASE_PASSWORD; \
-	        [ -z $$BOOKIT_DATABASE_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/staging/BOOKIT_DATABASE_PASSWORD" --description "Bookit Database User Password (staging)" --type "SecureString" --value "$$BOOKIT_DATABASE_PASSWORD" --overwrite
-	@read -p 'Staging Bookit App Admin/Basic Auth User Password: (<ENTER> will keep existing) ' BOOKIT_ADMIN_PASSWORD; \
-	        [ -z $$BOOKIT_ADMIN_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/staging/BOOKIT_ADMIN_PASSWORD" --description "Bookit Admin User Password (staging)" --type "SecureString" --value "$$BOOKIT_ADMIN_PASSWORD" --overwrite
+	@read -p 'Staging Application Database User Password (make same as above): (<ENTER> will keep existing) ' APPLICATION_DATABASE_PASSWORD; \
+	        [ -z $$APPLICATION_DATABASE_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/staging/APPLICATION_DATABASE_PASSWORD" --description "Application Database User Password (staging)" --type "SecureString" --value "$$APPLICATION_DATABASE_PASSWORD" --overwrite
 	@echo ""
 	@echo "Set/update PRODUCTION env SSM parameters: /${OWNER}/${PROJECT}/env/production"
 	@read -p 'Production Aurora Database Master Password: (<ENTER> will keep existing) ' DB_MASTER_PASSWORD; \
 	        [ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/production/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (production)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite
-	@read -p 'Production Bookit Database User Password (make same as above): (<ENTER> will keep existing) ' BOOKIT_DATABASE_PASSWORD; \
-	        [ -z $$BOOKIT_DATABASE_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/production/BOOKIT_DATABASE_PASSWORD" --description "Bookit Database User Password (production)" --type "SecureString" --value "$$BOOKIT_DATABASE_PASSWORD" --overwrite
-	@read -p 'Production Bookit App Admin/Basic Auth User Password: (<ENTER> will keep existing) ' BOOKIT_ADMIN_PASSWORD; \
-	        [ -z $$BOOKIT_ADMIN_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/production/BOOKIT_ADMIN_PASSWORD" --description "Bookit Admin User Password (production)" --type "SecureString" --value "$$BOOKIT_ADMIN_PASSWORD" --overwrite
+	@read -p 'Production Application Database User Password (make same as above): (<ENTER> will keep existing) ' APPLICATION_DATABASE_PASSWORD; \
+	        [ -z $$APPLICATION_DATABASE_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/production/APPLICATION_DATABASE_PASSWORD" --description "Application Database User Password (production)" --type "SecureString" --value "$$APPLICATION_DATABASE_PASSWORD" --overwrite
 
 check-existing-riglet:
 	@./scripts/protect-riglet.sh ${OWNER}-${PROJECT} ${REGION} list | [ `wc -l` -gt 0 ] && { echo "Riglet '${OWNER}-${PROJECT}' already exists in this region!"; exit 66; } || true
@@ -119,12 +113,9 @@ delete-deps:
 		"/${OWNER}/${PROJECT}/db/integration/DB_MASTER_PASSWORD" \
 		"/${OWNER}/${PROJECT}/db/staging/DB_MASTER_PASSWORD" \
 		"/${OWNER}/${PROJECT}/db/production/DB_MASTER_PASSWORD" \
-		"/${OWNER}/${PROJECT}/env/integration/BOOKIT_DATABASE_PASSWORD" \
-		"/${OWNER}/${PROJECT}/env/staging/BOOKIT_DATABASE_PASSWORD" \
-		"/${OWNER}/${PROJECT}/env/production/BOOKIT_DATABASE_PASSWORD" \
-		"/${OWNER}/${PROJECT}/env/integration/BOOKIT_ADMIN_PASSWORD" \
-		"/${OWNER}/${PROJECT}/env/staging/BOOKIT_ADMIN_PASSWORD" \
-		"/${OWNER}/${PROJECT}/env/production/BOOKIT_ADMIN_PASSWORD"
+		"/${OWNER}/${PROJECT}/env/integration/APPLICATION_DATABASE_PASSWORD" \
+		"/${OWNER}/${PROJECT}/env/staging/APPLICATION_DATABASE_PASSWORD" \
+		"/${OWNER}/${PROJECT}/env/production/APPLICATION_DATABASE_PASSWORD"
 
 ## Creates Foundation and Build
 
@@ -534,7 +525,7 @@ upload-foundation:
 
 ## Upload CF Templates for project
 # Note that these templates will be stored in your InfraDev Project **shared** bucket:
-upload-app: upload-app-deployment
+upload-app
 	@aws s3 cp --recursive cloudformation/app/ s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}/templates/
 	@pwd=$(shell pwd)
 	@cd cloudformation/app/ && zip templates.zip *.yaml
@@ -542,12 +533,6 @@ upload-app: upload-app-deployment
 	@aws s3 cp cloudformation/app/templates.zip s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}/templates/
 	@rm -rf cloudformation/app/templates.zip
 	@aws s3 cp cloudformation/app/app.yaml s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}/templates/
-
-## Upload app-deployment scripts to S3
-# Uploads the build support scripts to the build-support bucket.  These scripts can be used by external
-# build tools (Jenkins, Travis, etc.) to push images to ECR, deploy to ECS, etc.
-upload-app-deployment:
-#	@aws s3 cp --recursive app-deployment/ s3://rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}/app-deployment/
 
 ## Upload Compute ECS Templates
 upload-compute:

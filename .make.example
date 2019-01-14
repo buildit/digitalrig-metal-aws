@@ -2,6 +2,6 @@ DOMAIN = buildit.tools
 KEY_NAME = <your-region-keypair>
 OWNER = <jdoe>
 PROFILE = default
-PROJECT = bookit
+PROJECT = <projectname>
 REGION = <us-east-1>
 DOMAIN_CERT = 0663e927-e990-4157-aef9-7dea87faa6ec

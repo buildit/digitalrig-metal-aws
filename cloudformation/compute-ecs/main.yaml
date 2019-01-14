@@ -31,35 +31,39 @@ Parameters:
 Mappings:
   AWSRegionToAMI:
     us-east-2:
-      AMI: ami-956e52f0
+      AMI: ami-0b31574e5d83d5c42
     us-east-1:
-      AMI: ami-5253c32d
+      AMI: ami-06bec82fb46167b4f
     us-west-2:
-      AMI: ami-d2f489aa
+      AMI: ami-0b2cc421c0d3015b4
     us-west-1:
-      AMI: ami-6b81980b
+      AMI: ami-03a86880c9c6880ac
     eu-west-3:
-      AMI: ami-ca75c4b7
+      AMI: ami-0ca148151641c602a
     eu-west-2:
-      AMI: ami-3622cf51
+      AMI: ami-0e4266b1932fa97c8
     eu-west-1:
-      AMI: ami-c91624b0
+      AMI: ami-0de29b072b458b107
     eu-central-1:
-      AMI: ami-10e6c8fb
+      AMI: ami-08f05e21d1b86879f
+    eu-north-1:
+      AMI: ami-01821d990572e458a
     ap-northeast-2:
-      AMI: ami-7c69c112
+      AMI: ami-08733cca39f256fc0
     ap-northeast-1:
-      AMI: ami-f3f8098c
+      AMI: ami-04b084b13eedc8061
     ap-southeast-2:
-      AMI: ami-bc04d5de
+      AMI: ami-00f815702af6b8889
     ap-southeast-1:
-      AMI: ami-b75a6acb
+      AMI: ami-0b62a2301e9954559
     ca-central-1:
-      AMI: ami-da6cecbe
+      AMI: ami-03c73af2712f26819
     ap-south-1:
-      AMI: ami-c7072aa8
+      AMI: ami-0c6c683094db433fe
     sa-east-1:
-      AMI: ami-a1e2becd
+      AMI: ami-0d32ccfc47c154080
+    us-gov-west-1:
+      AMI: ami-cd3654ac
   EnvironmentMap:
     integration:
       ClusterSize: 1

@@ -41,8 +41,8 @@ read -p "Are you ABSOLUTELY SURE you want to proceed?  " -n 1 -r -t 3
 
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
-  deleteAppsAndBuild bookit-client-react
-  deleteAppsAndBuild bookit-api
+  # deleteAppsAndBuild bookit-client-react
+  # deleteAppsAndBuild bookit-api
   deleteEnvironment integration
   deleteEnvironment staging
   deleteEnvironment production

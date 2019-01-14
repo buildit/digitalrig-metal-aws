@@ -1,14 +1,16 @@
-# AWS The Rig
+# AWS Bare Metal Rig
 
 This codebase contains code to create and maintain a CloudFormation, AWS CodePipeline/CodeBuild/CodeDeploy powered Rig on AWS.
 
-Please see [Bookit Production Riglet](https://digitalrig.atlassian.net/wiki/spaces/RIG/pages/169378164/Bookit+Reboot+Riglet+aka+Bookit+Infrastructure+implementation+of+Bare+Metal+Rig) wiki page for details on the running production Bookit Rig.
+This repository is intended to be a reference implementation and act as the latest and greatest version of the AWS Bare Metal Rig
 
 ## The big picture(s)
 
-Bookit was rebooted in Sept 2017, and we decided to start from scratch.  We did decide to use the Bookit Riglet (implementation of Bare Metal Rig) as a starting point however.
+Bookit was rebooted in Sept 2017, and we decided to start from scratch.  We did decide to use the Bookit Riglet (implementation of Bare Metal Rig) as a starting point however.  As additional features were branched and prototyped, we decided to clone the [bookit-infrastructure](https://github.com/buildit/bookit-infrastructure) and remove any references to Bookit.
 
-This guide has all the steps for creating a "Bookit riglet instance".  The riglet is capable of doing builds, pushing to docker and deploying the docker images using blue/green deployment in to ECS.
+Typically, new projects would clone/fork this repo as a starting point for their own AWS Bare Metal Rig instance.
+
+This guide has all the steps for creating an "AWS Bare Metal riglet instance".  The riglet is capable of doing builds, pushing to docker and deploying the docker images using blue/green deployment in to ECS.
 
 The major components of this riglet are:
 
@@ -21,7 +23,6 @@ The major components of this riglet are:
     * a "foundation" bucket to store templates associated w/ the foundational stack
     * a "build" bucket to store build artifacts for the CodePipeline below (this is shared across all pipelines)
     * an "app" bucket to store templates associated w/ the app stack below
-    * a "build-support" bucket to store shared scripts that the CodeBuild and CodePipeline might use (not currently used... holdover from original bookit-riglet for now)
 * A "deployment-pipeline" stack: 1 stack per branch per repo
   * an ECS Repository (ECR)
   * a CodeBuild build - see buildspec.yml in the project
@@ -47,19 +48,19 @@ The major components of this riglet are:
   * an ECS Task Definition which runs the specific tag Docker image
   * IAM roles to make it all work
 
-The all infrastructure are set up and maintained using AWS CloudFormation.  CodeBuild is configured simply by updating the buildspec.yml file in each bookit project.
+The all infrastructure are set up and maintained using AWS CloudFormation.  CodeBuild is configured simply by updating the buildspec.yml file in each application project.
 
 The whole shebang:
 
-![alt text](https://raw.githubusercontent.com/buildit/bookit-infrastructure/master/docs/architecture/diagrams/bookit-infrastructure.png)
+![alt text](https://raw.githubusercontent.com/buildit/digitalrig-metal-aws/master/docs/architecture/diagrams/digitalrig-metal-aws.png)
 
 Single Environment (more detail):
 
-![alt text](https://raw.githubusercontent.com/buildit/bookit-infrastructure/master/docs/architecture/diagrams/aws-bare-foundation.png)
+![alt text](https://raw.githubusercontent.com/buildit/digitalrig-metal-aws/master/docs/architecture/diagrams/aws-bare-foundation.png)
 
 CodePipeline (more detail):
 
-![Code Pipeline](https://raw.githubusercontent.com/buildit/bookit-infrastructure/master/docs/architecture/diagrams/bookit-riglet-aws-hi-level.png)
+![Code Pipeline](https://raw.githubusercontent.com/buildit/digitalrig-metal-aws/master/docs/architecture/diagrams/digitalrig-metal-aws-riglet-aws-hi-level.png)
 
 ## Architectural Decisions
 
@@ -68,6 +69,7 @@ We are documenting our decisions [here](../master/docs/architecture/decisions)
 ---
 
 ## Setup
+
 _Please read through and understand these instructions before starting_.  There is a lot of automation, but there are also _a lot_ of details.
 Approaching things incorrectly can result in a non-running riglet that can be tricky to debug if you're not well-versed in the details.
 
@@ -94,17 +96,18 @@ To complete these instructions successfully you'll need:
 ### Creating a new Riglet
 
 #### Setting up your `.make` file
+
 This rig flavor uses `make` (yes, you read that right) to automate the creation of riglets.  Thus,
 it is _super-important_ to get your `.make` file set up properly.  You can either do this via an
-automated setup, or by doing some file manipulation. 
+automated setup, or by doing some file manipulation.
 
 ##### Automated setup (recommended for first-timers)
+
 1. Setup minimal `.make` for local settings interactively through `make .make`.
 1. Confirm everything is valid with `make check-env`!
 1. Continue below to fire up your riglet.
 
 See [.make file Expert mode](#.make-file-expert-mode) for additional details.
-
 
 #### Riglet Creation and Tear-down
 
@@ -114,7 +117,7 @@ details, which is both a good and bad thing.
 * `./create-standard-riglet.sh` to create a full riglet with standard environments (integration/staging/production).
   
   You will be asked some questions, the answers of which populate parameters in AWS' SSM Param Store. _Please take special note of the following_:
-  * You will need a personal Github repo token.  Please see http://tinyurl.com/yb5lxtr6
+  * You will need a personal Github repo token.  Please see <http://tinyurl.com/yb5lxtr6>
   * There are special cases to take into account, so _pay close attention to the prompts_.  
 * `make protect-riglet` to protect a running riglet (the Cfn stacks, anyway) from unintended deletion (`un-protect-riglet` to reverse.)
 * `./delete-standard-riglet.sh` to delete it all.
@@ -123,7 +126,6 @@ See [Individual Makefile Targets](#building-using-individual-makefile-targets) i
 
 See [Manually Tearing Down a Riglet](#manually-tearing-down-a-riglet) if you want to tear down by hand.
 
-
 #### Checking on things
 
 * Watch things happen in the CloudFormation console and elsewhere in AWS, or ...
@@ -131,12 +133,13 @@ See [Manually Tearing Down a Riglet](#manually-tearing-down-a-riglet) if you wan
 * Check the status of the activities above with `make status-foundation ENV=<environment>`
 
 And ...
+
 * Check AWS CloudWatch Logs for application logs.  In the Log Group Filter box search
   for for `<owner>-<application>` (at a minimum).  You can then drill down on the appropriate
   log group and individual log streams.
-* Check that applications have successfully deployed - AWS -> CloudFormation -> Select your application or 
-  API stack, and view the URLs available under "Outputs", e.g. for the API application `https://XXXX-integration-bookit-api.buildit.tools/v1/ping`
-  where XXXX is the Owner name as specified in the .make file.
+* Check that applications have successfully deployed - AWS -> CloudFormation -> Select your application or
+  API stack, and view the URLs available under "Outputs", e.g. for the API application `https://OWNER-integration-APPLICAIONNAME.buildit.tools/v1/ping`
+  where OWNER is the Owner name as specified in the .make file and APPLICATIONNAME is the REPO name as specified during app build creation (`make create-build REPO=...`).
 
 ---
 
@@ -160,18 +163,17 @@ Obviously, the templates can be updated if necessary.
 
 We're currently using AWS RDS Aurora MySQL 5.6.x
 
-| Environment    | DB URI (internal to VPC)              | DB Subnets (Private, MultiAZ) |
-| :------------- | :-------------                        | :-------------                |
-| integration    | mysql://aurora.bookit.internal/bookit | 10.1.100.0/24,10.1.110.0/24   |
-| staging        | mysql://aurora.bookit.internal/bookit | 10.2.100.0/24,10.2.110.0/24   |
-| production     | mysql://aurora.bookit.internal/bookit | 10.3.100.0/24,10.3.110.0/24   |
+| Environment    | DB URI (internal to VPC)                      | DB Subnets (Private, MultiAZ) |
+| :------------- | :-------------                                | :-------------                |
+| integration    | mysql://aurora.PROJECT.internal/DATABASE_NAME | 10.1.100.0/24,10.1.110.0/24   |
+| staging        | mysql://aurora.PROJECT.internal/DATABASE_NAME | 10.2.100.0/24,10.2.110.0/24   |
+| production     | mysql://aurora.PROJECT.internal/DATABASE_NAME | 10.3.100.0/24,10.3.110.0/24   |
 
 ### Application specifics
 
-| Application         | ContainerPort  | ContainerMemory | ListenerRulePriority                  | Subdomain
-| :-------------      | :------------- | :-------------- | :-------------                        | :--------
-| bookit-api          | 8080           | 512             | 300                                   | usually default to repo name (see create-standard-riglet.sh)
-| bookit-client-react | 4200           | 128             | 200 (lower makes it the ALB fallback) | usually override to "bookit"  (see create-standard-riglet.sh)
+| Application                 | ContainerPort  | ContainerMemory | ListenerRulePriority | Subdomain
+| :-------------              | :------------- | :-------------- | :-------------       | :--------
+| APP REPO (e.g. bookit-api)  | (e.g. 8080)    | in MB (e.g. 512) | for ALB (e.g. 300)  | usually default to repo name (see create-standard-riglet.sh)
 
 ---
 
@@ -261,9 +263,10 @@ Alarms are generated when ERROR level logs occur.  They currently get sent to th
 
 ## Appendix
 
-
 ---
+
 ### `.make` file Expert mode
+
 The `.make` file can also be created by copying `.make.example` to `.make` and making changes
 Example `.make` file with suggested values and comments (including optional values).
 
@@ -272,13 +275,12 @@ DOMAIN = <Domain to use for Foundation> ("buildit.tools" unless you've created a
 KEY_NAME = <EC2 SSH key name> (your side of an AWS-generated key pair for the region you'll run in)
 OWNER = <The owner of the stack>  (First initial + last name.)
 PROFILE = <AWS Profile Name> ("default" if you don't have multiple profiles).
-PROJECT = <Project Name> ("bookit" makes the most sense for this project)
+PROJECT = <Project Name> (e.g. "bookit")
 REGION = <AWS Region> (Whatever region you intend to run within.  Some regions don't support all resource types, so the common ones are best)
-DOMAIN_CERT = <AWS Certificate Manager GUID> ("0663e927-e990-4157-aef9-7dea87faa6ec" is already created for `us-east-` and is your best starting point)
+DOMAIN_CERT = <AWS Certificate Manager GUID> ("0663e927-e990-4157-aef9-7dea87faa6ec" is already created for `us-east-1` and is your best starting point)
 EMAIL_ADDRESS = <optional> (Email address for potential notifications.  Recommended only for production riglets.)
 SLACK_WEBHOOK = <optional> (Webhook address to post build notifications  Recommended only for production riglets.)
 ```
-
 
 ### Building using Individual Makefile Targets
 
@@ -292,7 +294,7 @@ installation is:
 ##### Execution/runtime Infrastructure and Environments
 
 * Run `make create-deps`.  This creates additional parameters in AWS' SSM Param Store.  Please take special note of the following:
-  * You will need a personal Github repo token.  Please see http://tinyurl.com/yb5lxtr6
+  * You will need a personal Github repo token.  Please see <http://tinyurl.com/yb5lxtr6>
   * There are special cases to take into account, so _pay close attention to the prompts_.
 * Run `make create-environment ENV=integration` (runs `create-foundation`, `create-compute`, `create-db`)
 * Run `make create-environment ENV=staging`
@@ -301,7 +303,7 @@ installation is:
 ##### Build "Environments"
 
 In this case there's no real "build environment", unless you want to consider AWS services an environment.
-We are using CodePipeline and CodeBuild, which are build _managed services_ run by Amazon (think Jenkins in 
+We are using CodePipeline and CodeBuild, which are build _managed services_ run by Amazon (think Jenkins in
 the cloud, sort-of).  So what we're doing in this step is creating the build pipeline(s) for our code repo(s).
 
 * Run `make create-build REPO=<repo_name> CONTAINER_PORT=<port> CONTAINER_MEMORY=<MiB> LISTENER_RULE_PRIORITY=<priority>`, same options for status: `make status-build` and outputs `make outputs-build`
@@ -312,14 +314,13 @@ the cloud, sort-of).  So what we're doing in this step is creating the build pip
   * (optional) REPO_BRANCH is the branch name for the repo - MUST NOT CONTAIN SLASHES!
   * (optional) SUBDOMAIN is placed in front of the DOMAIN configured in the .make file when generating ALB listener rules.  Defaults to REPO.
   * (optional) SLACK_WEBHOOK is a slack URL to which build notifications are sent.
-    > If not included, no notifications are sent.  Be aware of this when issuing `make create-update` commands on existing stacks! 
+    > If not included, no notifications are sent.  Be aware of this when issuing `make create-update` commands on existing stacks!
 
 ##### Deployed Applications
 
 It gets a little weird here.  You never start an application yourself in this riglet.  The build environments
 actually dynamically create "app" stacks in CloudFormation as part of a successful build.  These app stacks
 represent deployed and running code (they basically map to ECS Services and TaskDefinitions).
-
 
 ### Manually Tearing Down a Riglet
 
