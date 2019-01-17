@@ -4,6 +4,10 @@ Description: ECS Cluster
 AWSTemplateFormatVersion: 2010-09-09
 
 Parameters:
+  ComputeBucket:
+    Description: Compute S3 Bucket
+    Type: String
+
   Environment:
     Description: Stack environment
     Type: String
@@ -28,75 +32,9 @@ Parameters:
   SshKeyName:
     Type: AWS::EC2::KeyPair::KeyName
 
-Mappings:
-  AWSRegionToAMI:
-    us-east-2:
-      AMI: ami-0b31574e5d83d5c42
-    us-east-1:
-      AMI: ami-06bec82fb46167b4f
-    us-west-2:
-      AMI: ami-0b2cc421c0d3015b4
-    us-west-1:
-      AMI: ami-03a86880c9c6880ac
-    eu-west-3:
-      AMI: ami-0ca148151641c602a
-    eu-west-2:
-      AMI: ami-0e4266b1932fa97c8
-    eu-west-1:
-      AMI: ami-0de29b072b458b107
-    eu-central-1:
-      AMI: ami-08f05e21d1b86879f
-    eu-north-1:
-      AMI: ami-01821d990572e458a
-    ap-northeast-2:
-      AMI: ami-08733cca39f256fc0
-    ap-northeast-1:
-      AMI: ami-04b084b13eedc8061
-    ap-southeast-2:
-      AMI: ami-00f815702af6b8889
-    ap-southeast-1:
-      AMI: ami-0b62a2301e9954559
-    ca-central-1:
-      AMI: ami-03c73af2712f26819
-    ap-south-1:
-      AMI: ami-0c6c683094db433fe
-    sa-east-1:
-      AMI: ami-0d32ccfc47c154080
-    us-gov-west-1:
-      AMI: ami-cd3654ac
-  EnvironmentMap:
-    integration:
-      ClusterSize: 1
-    staging:
-      ClusterSize: 2
-    production:
-      ClusterSize: 2
-
 Resources:
-  ECSRole:
-    Type: AWS::IAM::Role
-    Properties:
-      Path: /
-      AssumeRolePolicyDocument: |
-        {
-            "Statement": [{
-                "Effect": "Allow",
-                "Principal": { "Service": [ "ec2.amazonaws.com" ]},
-                "Action": [ "sts:AssumeRole" ]
-            }]
-        }
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
-
-  InstanceProfile:
-    Type: AWS::IAM::InstanceProfile
-    Properties:
-      Path: /
-      Roles:
-        - !Ref ECSRole
-
   SecurityGroup:
-    Type: "AWS::EC2::SecurityGroup"
+    Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: !Sub ${AWS::StackName}-hosts
       SecurityGroupIngress:
@@ -111,75 +49,22 @@ Resources:
     Properties:
       ClusterName: !Sub ${AWS::StackName}-ECSCluster
 
-  AutoScalingGroup:
-    Type: AWS::AutoScaling::AutoScalingGroup
+  EcsEc2Hosts:
+    DependsOn:
+      - Cluster
+      - SecurityGroup
+    Type: AWS::CloudFormation::Stack
     Properties:
-      VPCZoneIdentifier:
-        - Fn::ImportValue: !Sub "${FoundationStackName}--SubnetPrivateA"
-        - Fn::ImportValue: !Sub "${FoundationStackName}--SubnetPrivateB"
-      LaunchConfigurationName: !Ref LaunchConfiguration
-      MinSize: !FindInMap [ EnvironmentMap, !Ref Environment, ClusterSize ]
-      MaxSize: !Ref ClusterMaxSize
-      DesiredCapacity: !FindInMap [ EnvironmentMap, !Ref Environment, ClusterSize ]
-      Tags:
-        - Key: Name
-          Value: !Sub ${FoundationStackName}--ECSHost
-          PropagateAtLaunch: true
-    CreationPolicy:
-      ResourceSignal:
-        Timeout: PT15M
-    UpdatePolicy:
-      AutoScalingRollingUpdate:
-        MinInstancesInService: 1
-        MaxBatchSize: 1
-        PauseTime: PT15M
-        WaitOnResourceSignals: true
-
-  LaunchConfiguration:
-    Type: AWS::AutoScaling::LaunchConfiguration
-    Metadata:
-      AWS::CloudFormation::Init:
-        config:
-          commands:
-            01_add_instance_to_cluster:
-                command: !Sub echo ECS_CLUSTER=${Cluster} > /etc/ecs/ecs.config
-          files:
-            "/etc/cfn/cfn-hup.conf":
-              mode: 000400
-              owner: root
-              group: root
-              content: !Sub |
-                [main]
-                stack=${AWS::StackId}
-                region=${AWS::Region}
-            "/etc/cfn/hooks.d/cfn-auto-reloader.conf":
-              content: !Sub |
-                [cfn-auto-reloader-hook]
-                triggers=post.update
-                path=Resources.ContainerInstances.Metadata.AWS::CloudFormation::Init
-                action=/opt/aws/bin/cfn-init -v --region ${AWS::Region} --stack ${AWS::StackName} --resource LaunchConfiguration
-          services:
-            sysvinit:
-              cfn-hup:
-                enabled: true
-                ensureRunning: true
-                files:
-                  - /etc/cfn/cfn-hup.conf
-                  - /etc/cfn/hooks.d/cfn-auto-reloader.conf
-    Properties:
-      ImageId: !FindInMap [ AWSRegionToAMI, !Ref "AWS::Region", AMI ]
-      InstanceType: !Ref InstanceType
-      KeyName: !Ref SshKeyName
-      IamInstanceProfile: !Ref InstanceProfile
-      SecurityGroups:
-        - !Ref SecurityGroup
-      UserData:
-        "Fn::Base64": !Sub |
-          #!/bin/bash
-          yum install -y aws-cfn-bootstrap
-          /opt/aws/bin/cfn-init -v --region ${AWS::Region} --stack ${AWS::StackName} --resource LaunchConfiguration
-          /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource AutoScalingGroup
-
+      Parameters:
+        Environment: !Ref Environment
+        FoundationStackName: !Ref FoundationStackName
+        ClusterName: !Sub ${AWS::StackName}-ECSCluster
+        SecurityGroup: !GetAtt SecurityGroup.GroupId
+        ClusterMaxSize: !Ref ClusterMaxSize
+        InstanceType: !Ref InstanceType
+        SshKeyName: !Ref SshKeyName
+      TemplateURL: !Sub https://s3.amazonaws.com/${ComputeBucket}/templates/ec2-hosts.yaml
+      TimeoutInMinutes: 60
 
 Outputs:
   ClusterName:
@@ -190,5 +75,3 @@ Outputs:
     Export:
       Name: !Sub "${AWS::StackName}--AppSecurityGroup"
     Value: !Ref SecurityGroup
-  AutoScalingGroup:
-    Value: !Ref AutoScalingGroup

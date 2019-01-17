@@ -149,6 +149,7 @@ create-compute: create-compute-deps upload-compute
 		--template-body "file://cloudformation/compute-ecs/main.yaml" \
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameters \
+			"ParameterKey=ComputeBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
 			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
@@ -282,6 +283,7 @@ update-compute: upload-compute
 		--parameters \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
+			"ParameterKey=ComputeBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" \
 			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
@@ -525,7 +527,7 @@ upload-foundation:
 
 ## Upload CF Templates for project
 # Note that these templates will be stored in your InfraDev Project **shared** bucket:
-upload-app
+upload-app:
 	@aws s3 cp --recursive cloudformation/app/ s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}/templates/
 	@pwd=$(shell pwd)
 	@cd cloudformation/app/ && zip templates.zip *.yaml
