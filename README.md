@@ -246,12 +246,12 @@ the future via CloudFormation.
 > feature. This creates a pending update to the CloudFormation stack that can be executed immediately, or go through an
 > approval process.  This is a safe way to preview the "blast radius" of planned changes, too before committing.
 
-### Updating ECS AMIs
+### Updating ECS EC2 AMIs
 
-The ECS cluster runs Amazon-supplied AMIs.  The AMIs are captured in a map in the `compute-ecs/main.yaml`
-template.  Occasionally, Amazon releases newer AMIs and marks existing instances as out-of-date in the
-ECS console.  To update to the latest set of AMIs, run the `./cloudformation/scripts/ecs-optimized-ami.sh`
-script and copy the results into the `compute-ecs/main.yaml` template's `AWSRegionToAMI` mapping.
+The ECS EC2 cluster runs Amazon-supplied AMIs.  Occasionally, Amazon releases newer AMIs and marks existing instances as
+out-of-date in the ECS console.  To update to the latest set of AMIs, update the ECSAMI parameter value in
+`cloudformation/compute-ecs/ec2-hosts.yaml`.  We don't use the `recommended` version number as that could introduce
+regressions without proper testing or notification of what has changed.
 
 ## Logs
 
