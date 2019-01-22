@@ -17,7 +17,7 @@ The major components of this riglet are:
 * A "foundational" stack running in Amazon:  1 of these is created for each environment (integration, staging, production, etc)
   * a VPC with the appropriate network elements (gateways, NAT)
   * a shared Application Load Balancer (ALB) - listens on ports 80 & 443
-  * a shared EC2 Container Server (ECS) Cluster.
+  * a shared EC2 Container Server (ECS) Cluster (using either EC2 hosts or Fargate).
   * an RDS Aurora Database
   * 4 shared S3 buckets to store CloudFormation templates and scripts
     * a "foundation" bucket to store templates associated w/ the foundational stack
@@ -171,8 +171,8 @@ We're currently using AWS RDS Aurora MySQL 5.6.x
 
 ### Application specifics
 
-| Application                 | ContainerPort  | ContainerMemory | ListenerRulePriority | Subdomain
-| :-------------              | :------------- | :-------------- | :-------------       | :--------
+| Application                 | ContainerPort  | ContainerMemory  | ListenerRulePriority | Subdomain
+| :-------------              | :------------- | :--------------  | :-------------       | :--------
 | APP REPO (e.g. bookit-api)  | (e.g. 8080)    | in MB (e.g. 512) | for ALB (e.g. 300)  | usually default to repo name (see create-standard-riglet.sh)
 
 ---
@@ -200,11 +200,19 @@ before proceeding, or consider using a Change Set.
 
 ### Application Scaling Parameters
 
-| Parameter                    | Scaling Style | Stack                      | Parameter                  |
-| :---                         | :---          | :---                       | :---                       |
-| # of ECS cluster instances   | Horizontal    | compute-ecs                | ClusterSize/ClusterMaxSize |
-| Size of ECS Hosts            | Vertical      | compute-ecs                | InstanceType               |
-| Number of Tasks              | Horizontal    | app (once created by build)| TaskDesiredCount           |
+#### ECS (EC2 or Fargate)
+
+| Parameter                    | Scaling Style | Stack                      | Parameter                    |
+| :---                         | :---          | :---                       | :---                         |
+| Number of Tasks              | Horizontal    | app (once created by build)| TaskDesiredCount             |
+| Task CPU/Memory              | Vertical      | app (once created by build)| ContainerCpu/ContainerMemory |
+
+#### ECS EC2
+
+| Parameter                    | Scaling Style | Stack                      | Parameter                    |
+| :---                         | :---          | :---                       | :---                         |
+| # of ECS cluster instances   | Horizontal    | compute-ecs                | ClusterSize/ClusterMaxSize   |
+| Size of ECS Hosts            | Vertical      | compute-ecs                | InstanceType                 |
 
 ### Database Scaling Parameters
 

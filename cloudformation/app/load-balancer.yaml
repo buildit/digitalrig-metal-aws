@@ -32,8 +32,13 @@ Parameters:
     Description: The priority for the listener rule
     Type: Number
 
+  EcsHostType:
+    Description: ECS Launch type - EC2 or Fargate
+    Type: AWS::SSM::Parameter::Value<String>
+
 Conditions:
   ShouldCreatePreferredCname: !Equals [ !Ref Environment, production ]
+  IsFargate: !Equals [ !Ref EcsHostType, FARGATE ]
 
 Resources:
   TargetGroup:
@@ -53,7 +58,7 @@ Resources:
       TargetGroupAttributes:
         - Key: deregistration_delay.timeout_seconds
           Value: 30
-      # TargetType: ip
+      TargetType: !If [ IsFargate , ip, instance]
 
   AppEnvDns:
     Type: AWS::Route53::RecordSetGroup

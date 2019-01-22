@@ -66,6 +66,10 @@ Parameters:
     Description: The prefix SSM namespace where the stack can find needed parameters
     Type: String
 
+  EcsHostType:
+    Description: ECS Launch type - EC2 or Fargate
+    Type: AWS::SSM::Parameter::Name
+
 Conditions:
   WebhookSpecified: !Not [ !Equals [ !Ref SlackWebhook, "" ] ]
 
@@ -103,6 +107,7 @@ Resources:
             Statement:
               - Resource: "*"
                 Effect: Allow
+                # TODO:  this needs to be tightened-up.
                 Action:
                   - ecs:*
                   - ecr:*
@@ -112,6 +117,7 @@ Resources:
                   - elasticloadbalancing:*
                   - logs:*
                   - cloudwatch:*
+                  - ssm:*
 
   CodeBuildServiceRole:
     DependsOn: CloudFormationExecutionRole
@@ -375,6 +381,7 @@ Resources:
                       "TaskDesiredCount": "${EnvironmentTaskDesiredCount}",
                       "ListenerRulePriority": "${ListenerRulePriority}",
                       "SsmEnvironmentNamespace": "${SsmNamespacePrefix}/env/integration",
+                      "EcsHostType": "${EcsHostType}",
                       "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                     }
                   - EnvironmentTaskDesiredCount: !FindInMap [ EnvironmentDefaults, integration, DesiredTasks ]
@@ -427,6 +434,7 @@ Resources:
                       "TaskDesiredCount": "${EnvironmentTaskDesiredCount}",
                       "ListenerRulePriority": "${ListenerRulePriority}",
                       "SsmEnvironmentNamespace": "${SsmNamespacePrefix}/env/staging",
+                      "EcsHostType": "${EcsHostType}",
                       "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                     }
                   - EnvironmentTaskDesiredCount: !FindInMap [ EnvironmentDefaults, staging, DesiredTasks ]
@@ -471,6 +479,7 @@ Resources:
                       "TaskDesiredCount": "${EnvironmentTaskDesiredCount}",
                       "ListenerRulePriority": "${ListenerRulePriority}",
                       "SsmEnvironmentNamespace": "${SsmNamespacePrefix}/env/production",
+                      "EcsHostType": "${EcsHostType}",
                       "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                     }
                   - EnvironmentTaskDesiredCount: !FindInMap [ EnvironmentDefaults, production, DesiredTasks ]

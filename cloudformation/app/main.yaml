@@ -47,6 +47,10 @@ Parameters:
   ContainerPort:
     Type: Number
 
+  ContainerCpu:
+    Type: Number
+    Default: 256
+
   ContainerMemory:
     Type: Number
     Default: 128
@@ -63,6 +67,10 @@ Parameters:
     Type: String
     Default: latest
 
+  EcsHostType:
+    Description: ECS Launch type - EC2 or Fargate
+    Type: AWS::SSM::Parameter::Name
+
 Resources:
   LoadBalancer:
     Type: AWS::CloudFormation::Stack
@@ -75,6 +83,7 @@ Resources:
         Owner: !Ref Owner
         Subdomain: !Ref Subdomain
         ListenerRulePriority: !Ref ListenerRulePriority
+        EcsHostType: !Ref EcsHostType
       TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/load-balancer.yaml
       TimeoutInMinutes: 60
 
@@ -92,8 +101,10 @@ Resources:
         ApplicationName: !Ref ApplicationName
         Owner: !Ref Owner
         ContainerPort: !Ref ContainerPort
+        ContainerCpu: !Ref ContainerCpu
         ContainerMemory: !Ref ContainerMemory
         TaskDesiredCount: !Ref TaskDesiredCount
         Tag: !Ref Tag
+        EcsHostType: !Ref EcsHostType
       TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/app.yaml
       TimeoutInMinutes: 60

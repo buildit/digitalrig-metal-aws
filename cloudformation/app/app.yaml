@@ -35,6 +35,10 @@ Parameters:
   ContainerPort:
     Type: Number
 
+  ContainerCpu:
+    Type: Number
+    Default: 256
+
   ContainerMemory:
     Type: Number
     Default: 128
@@ -47,8 +51,14 @@ Parameters:
     Type: String
     Default: latest
 
+  EcsHostType:
+    Description: ECS Launch type - EC2 or Fargate
+    Type: AWS::SSM::Parameter::Value<String>
+
 Conditions:
   ShouldCreateErrorLogAlarm: !Not [ !Equals [ !Ref Environment, integration ] ]
+  IsFargate: !Equals [ !Ref EcsHostType, FARGATE ]
+  IsEC2: !Equals [ !Ref EcsHostType, EC2 ]
 
 Resources:
   LogErrorCountMetricFilter:
@@ -79,32 +89,37 @@ Resources:
       Period: 60
       EvaluationPeriods: 1
 
-  ECSServiceRole:
-    Type: AWS::IAM::Role
-    Properties:
-      Path: /
-      AssumeRolePolicyDocument: |
-        {
-            "Statement": [{
-                "Effect": "Allow",
-                "Principal": { "Service": [ "ecs.amazonaws.com" ]},
-                "Action": [ "sts:AssumeRole" ]
-            }]
-        }
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceRole
-
   Service:
     Type: AWS::ECS::Service
     Properties:
       Cluster:
         Fn::ImportValue: !Sub "${ComputeStackName}--Cluster"
-      Role: !Ref ECSServiceRole
+      LaunchType: !Ref EcsHostType
+      HealthCheckGracePeriodSeconds: 600
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 75
       DesiredCount: !Ref TaskDesiredCount
       TaskDefinition: !Ref TaskDefinition
+      NetworkConfiguration:
+        !If
+          - IsFargate
+          -
+            AwsvpcConfiguration:
+              AssignPublicIp: DISABLED
+              SecurityGroups:
+                - Fn::ImportValue: !Sub "${ComputeStackName}--AppSecurityGroup"
+              Subnets:
+                - Fn::ImportValue: !Sub "${FoundationStackName}--SubnetPrivateA"
+                - Fn::ImportValue: !Sub "${FoundationStackName}--SubnetPrivateB"
+          - !Ref "AWS::NoValue"
       PlacementStrategies:
-        - Type: spread
-          Field: host
+        !If
+          - IsEC2
+          -
+            - Type: spread
+              Field: host
+          - !Ref "AWS::NoValue"
       LoadBalancers:
         - ContainerName: !Ref ApplicationName
           ContainerPort: !Ref ContainerPort
@@ -129,6 +144,8 @@ Resources:
                 "Action": [ "sts:AssumeRole" ]
             }]
         }
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
       Policies:
         - PolicyName: root
           PolicyDocument:
@@ -150,7 +167,13 @@ Resources:
     Type: AWS::ECS::TaskDefinition
     Properties:
       Family: !Sub ${AWS::StackName}-${ApplicationName}
+      Cpu: !Ref 'ContainerCpu'
+      Memory: !Ref 'ContainerMemory'
+      NetworkMode: !If [ IsFargate , awsvpc, bridge]
+      ExecutionRoleArn: !Ref TaskDefinitionServiceRole
       TaskRoleArn: !Ref TaskDefinitionServiceRole
+      RequiresCompatibilities:
+        - !Ref EcsHostType
       ContainerDefinitions:
         - Name: !Ref ApplicationName
           Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}:${Tag}
