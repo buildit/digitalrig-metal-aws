@@ -1,0 +1,99 @@
+---
+
+Description: Application Deployment on ECS
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  Environment:
+    Description: Stack environment
+    Type: String
+
+  FoundationStackName:
+    Description: Foundation stack name
+    Type: String
+
+  ComputeStackName:
+    Description: Compute stack name
+    Type: String
+
+  InfraDevBucket:
+    Description: App S3 Bucket
+    Type: String
+
+  PublicDomainName:
+    Description: Public Domain Name for sites and services created by this stack.
+    Type: String
+
+  SsmEnvironmentNamespace:
+    Description: Namespace in parameter store from which configuration values will be taken.
+    Type: String
+
+  Repository:
+    Description: ECR Repository
+    Type: String
+
+  ApplicationName:
+    Description: Name of the application (part of hostname)
+    Type: String
+
+  Owner:
+    Description: Person or organization responsible for the running riglet.
+    Type: String
+
+  Subdomain:
+    Description: The subdomain used to build a host name for the "production/preferred" HTTP listener for this app.
+    Type: String
+
+  ContainerPort:
+    Type: Number
+
+  ContainerMemory:
+    Type: Number
+    Default: 128
+
+  TaskDesiredCount:
+    Type: Number
+    Default: 0
+
+  ListenerRulePriority:
+    Description: The priority for the listener rule
+    Type: Number
+
+  Tag:
+    Type: String
+    Default: latest
+
+Resources:
+  LoadBalancer:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        Environment: !Ref Environment
+        FoundationStackName: !Ref FoundationStackName
+        PublicDomainName: !Ref PublicDomainName
+        ApplicationName: !Ref ApplicationName
+        Owner: !Ref Owner
+        Subdomain: !Ref Subdomain
+        ListenerRulePriority: !Ref ListenerRulePriority
+      TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/load-balancer.yaml
+      TimeoutInMinutes: 60
+
+  Application:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - LoadBalancer
+    Properties:
+      Parameters:
+        Environment: !Ref Environment
+        FoundationStackName: !Ref FoundationStackName
+        ComputeStackName: !Ref ComputeStackName
+        SsmEnvironmentNamespace: !Ref SsmEnvironmentNamespace
+        Repository: !Ref Repository
+        ApplicationName: !Ref ApplicationName
+        Owner: !Ref Owner
+        ContainerPort: !Ref ContainerPort
+        ContainerMemory: !Ref ContainerMemory
+        TaskDesiredCount: !Ref TaskDesiredCount
+        Tag: !Ref Tag
+      TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/app.yaml
+      TimeoutInMinutes: 60

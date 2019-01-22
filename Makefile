@@ -217,7 +217,7 @@ create-app: create-app-deps upload-app
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
                 --disable-rollback \
-		--template-body "file://cloudformation/app/app.yaml" \
+		--template-body "file://cloudformation/app/main.yaml" \
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameters \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
@@ -345,7 +345,7 @@ update-app: upload-app
 	@echo "Updating ${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH} stack"
 	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
-		--template-body "file://cloudformation/app/app.yaml" \
+		--template-body "file://cloudformation/app/main.yaml" \
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameters \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
@@ -534,7 +534,7 @@ upload-app:
 	@cd ${pwd}
 	@aws s3 cp cloudformation/app/templates.zip s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}/templates/
 	@rm -rf cloudformation/app/templates.zip
-	@aws s3 cp cloudformation/app/app.yaml s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}/templates/
+	@aws s3 cp --recursive cloudformation/app/ s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}/templates/
 
 ## Upload Compute ECS Templates
 upload-compute:

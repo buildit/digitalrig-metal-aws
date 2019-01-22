@@ -106,6 +106,7 @@ Resources:
                 Action:
                   - ecs:*
                   - ecr:*
+                  - s3:*
                   - iam:*
                   - route53:*
                   - elasticloadbalancing:*
@@ -355,7 +356,7 @@ Resources:
                 StackName: !Sub "${AppStackName}-integration-app-${GitHubRepo}-${GitHubBranch}"
                 Capabilities: CAPABILITY_NAMED_IAM
                 OutputFileName: CloudFormationOutput.json
-                TemplatePath: IntegrationTemplate::app.yaml
+                TemplatePath: IntegrationTemplate::main.yaml
                 RoleArn: !GetAtt CloudFormationExecutionRole.Arn
                 ParameterOverrides: !Sub
                   - |
@@ -407,7 +408,7 @@ Resources:
                 StackName: !Sub "${AppStackName}-staging-app-${GitHubRepo}-${GitHubBranch}"
                 Capabilities: CAPABILITY_NAMED_IAM
                 OutputFileName: CloudFormationOutput.json
-                TemplatePath: StagingTemplate::app.yaml
+                TemplatePath: StagingTemplate::main.yaml
                 RoleArn: !GetAtt CloudFormationExecutionRole.Arn
                 ParameterOverrides: !Sub
                   - |
@@ -452,7 +453,7 @@ Resources:
                 StackName: !Sub "${AppStackName}-production-app-${GitHubRepo}-${GitHubBranch}"
                 Capabilities: CAPABILITY_NAMED_IAM
                 ChangeSetName: !Sub "${AppStackName}-production-app-${GitHubRepo}-${GitHubBranch}"
-                TemplatePath: ProductionTemplate::app.yaml
+                TemplatePath: ProductionTemplate::main.yaml
                 ParameterOverrides: !Sub
                   - |
                     {
