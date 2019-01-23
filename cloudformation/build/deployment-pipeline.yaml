@@ -362,7 +362,7 @@ Resources:
                 StackName: !Sub "${AppStackName}-integration-app-${GitHubRepo}-${GitHubBranch}"
                 Capabilities: CAPABILITY_NAMED_IAM
                 OutputFileName: CloudFormationOutput.json
-                TemplatePath: IntegrationTemplate::main.yaml
+                TemplatePath: IntegrationTemplate::app.yaml
                 RoleArn: !GetAtt CloudFormationExecutionRole.Arn
                 ParameterOverrides: !Sub
                   - |
@@ -370,7 +370,6 @@ Resources:
                       "Environment": "integration",
                       "FoundationStackName": "${AppStackName}-integration-foundation",
                       "ComputeStackName": "${AppStackName}-integration-compute-ecs",
-                      "InfraDevBucket": "${InfraDevBucketBase}.integration",
                       "PublicDomainName": "${PublicDomainName}",
                       "Repository": "${Repository}",
                       "ApplicationName": "${ApplicationName}",
@@ -415,7 +414,7 @@ Resources:
                 StackName: !Sub "${AppStackName}-staging-app-${GitHubRepo}-${GitHubBranch}"
                 Capabilities: CAPABILITY_NAMED_IAM
                 OutputFileName: CloudFormationOutput.json
-                TemplatePath: StagingTemplate::main.yaml
+                TemplatePath: StagingTemplate::app.yaml
                 RoleArn: !GetAtt CloudFormationExecutionRole.Arn
                 ParameterOverrides: !Sub
                   - |
@@ -423,7 +422,6 @@ Resources:
                       "Environment": "staging",
                       "FoundationStackName": "${AppStackName}-staging-foundation",
                       "ComputeStackName": "${AppStackName}-staging-compute-ecs",
-                      "InfraDevBucket": "${InfraDevBucketBase}.staging",
                       "PublicDomainName": "${PublicDomainName}",
                       "Repository": "${Repository}",
                       "ApplicationName": "${ApplicationName}",
@@ -461,14 +459,13 @@ Resources:
                 StackName: !Sub "${AppStackName}-production-app-${GitHubRepo}-${GitHubBranch}"
                 Capabilities: CAPABILITY_NAMED_IAM
                 ChangeSetName: !Sub "${AppStackName}-production-app-${GitHubRepo}-${GitHubBranch}"
-                TemplatePath: ProductionTemplate::main.yaml
+                TemplatePath: ProductionTemplate::app.yaml
                 ParameterOverrides: !Sub
                   - |
                     {
                       "Environment": "production",
                       "FoundationStackName": "${AppStackName}-production-foundation",
                       "ComputeStackName": "${AppStackName}-production-compute-ecs",
-                      "InfraDevBucket": "${InfraDevBucketBase}.production",
                       "PublicDomainName": "${PublicDomainName}",
                       "Repository": "${Repository}",
                       "ApplicationName": "${ApplicationName}",
