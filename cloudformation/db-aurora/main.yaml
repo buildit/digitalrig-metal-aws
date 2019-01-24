@@ -57,6 +57,32 @@ Parameters:
     Description: DB S3 Bucket
     Type: String
 
+  MinCapacity:
+    Type: Number
+    Default: 2
+    AllowedValues:
+      - 2
+      - 4
+      - 8
+      - 16
+      - 32
+      - 64
+      - 128
+      - 256
+
+  MaxCapacity:
+    Type: Number
+    Default: 2
+    AllowedValues:
+      - 2
+      - 4
+      - 8
+      - 16
+      - 32
+      - 64
+      - 128
+      - 256
+
 Mappings:
   EnvironmentMap:
     integration:
@@ -77,6 +103,7 @@ Mappings:
 
 Conditions:
   CreateDbProvisionedHosts: !Equals [ !Ref DbHostType, provisioned ]
+  IsServerless: !Equals [ !Ref DbHostType, serverless ]
 
 Resources:
   DbSubnetPrivateA:
@@ -151,6 +178,13 @@ Resources:
       VpcSecurityGroupIds:
         - !Ref DatabaseSecurityGroup
       DatabaseName: !Ref DatabaseName
+      ScalingConfiguration:
+        !If
+          - IsServerless
+          -
+            MinCapacity: !Ref MinCapacity
+            MaxCapacity: !Ref MaxCapacity
+          - !Ref "AWS::NoValue"
 
   DatabaseInternalDns:
     Type: AWS::Route53::RecordSetGroup
