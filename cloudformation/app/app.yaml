@@ -16,14 +16,6 @@ Parameters:
     Description: Compute stack name
     Type: String
 
-  InfraDevBucket:
-    Description: App S3 Bucket
-    Type: String
-
-  PublicDomainName:
-    Description: Public Domain Name for sites and services created by this stack.
-    Type: String
-
   SsmEnvironmentNamespace:
     Description: Namespace in parameter store from which configuration values will be taken.
     Type: String
@@ -40,12 +32,12 @@ Parameters:
     Description: Person or organization responsible for the running riglet.
     Type: String
 
-  Subdomain:
-    Description: The subdomain used to build a host name for the "production/preferred" HTTP listener for this app.
-    Type: String
-
   ContainerPort:
     Type: Number
+
+  ContainerCpu:
+    Type: Number
+    Default: 256
 
   ContainerMemory:
     Type: Number
@@ -55,18 +47,31 @@ Parameters:
     Type: Number
     Default: 0
 
-  ListenerRulePriority:
-    Description: The priority for the listener rule
-    Type: Number
-
   Tag:
     Type: String
     Default: latest
 
+  EcsHostType:
+    Description: ECS Launch type - EC2 or Fargate
+    Type: AWS::SSM::Parameter::Value<String>
+
+  PublicDomainName:
+    Description: Public Domain Name for sites and services created by this stack.
+    Type: String
+
+  Subdomain:
+    Description: The subdomain used to build a host name for the "production/preferred" HTTP listener for this app.
+    Type: String
+
+  ListenerRulePriority:
+    Description: The priority for the listener rule
+    Type: Number
+
 Conditions:
   ShouldCreatePreferredCname: !Equals [ !Ref Environment, production ]
-
   ShouldCreateErrorLogAlarm: !Not [ !Equals [ !Ref Environment, integration ] ]
+  IsFargate: !Equals [ !Ref EcsHostType, FARGATE ]
+  IsEC2: !Equals [ !Ref EcsHostType, EC2 ]
 
 Resources:
   TargetGroup:
@@ -86,6 +91,7 @@ Resources:
       TargetGroupAttributes:
         - Key: deregistration_delay.timeout_seconds
           Value: 30
+      TargetType: !If [ IsFargate , ip, instance]
 
   AppEnvDns:
     Type: AWS::Route53::RecordSetGroup
@@ -129,7 +135,6 @@ Resources:
         - TargetGroupArn: !Ref TargetGroup
           Type: forward
 
-
   PreferredListenerRuleHttp:
     Condition: ShouldCreatePreferredCname
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
@@ -159,7 +164,6 @@ Resources:
       Actions:
         - TargetGroupArn: !Ref TargetGroup
           Type: forward
-
 
   ExternalHealthCheck:
     Type: AWS::Route53::HealthCheck
@@ -220,32 +224,37 @@ Resources:
       Period: 60
       EvaluationPeriods: 1
 
-  ECSServiceRole:
-    Type: AWS::IAM::Role
-    Properties:
-      Path: /
-      AssumeRolePolicyDocument: |
-        {
-            "Statement": [{
-                "Effect": "Allow",
-                "Principal": { "Service": [ "ecs.amazonaws.com" ]},
-                "Action": [ "sts:AssumeRole" ]
-            }]
-        }
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceRole
-
   Service:
     Type: AWS::ECS::Service
     Properties:
       Cluster:
         Fn::ImportValue: !Sub "${ComputeStackName}--Cluster"
-      Role: !Ref ECSServiceRole
+      LaunchType: !Ref EcsHostType
+      HealthCheckGracePeriodSeconds: 600
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 75
       DesiredCount: !Ref TaskDesiredCount
       TaskDefinition: !Ref TaskDefinition
+      NetworkConfiguration:
+        !If
+          - IsFargate
+          -
+            AwsvpcConfiguration:
+              AssignPublicIp: DISABLED
+              SecurityGroups:
+                - Fn::ImportValue: !Sub "${ComputeStackName}--AppSecurityGroup"
+              Subnets:
+                - Fn::ImportValue: !Sub "${FoundationStackName}--SubnetPrivateA"
+                - Fn::ImportValue: !Sub "${FoundationStackName}--SubnetPrivateB"
+          - !Ref "AWS::NoValue"
       PlacementStrategies:
-        - Type: spread
-          Field: host
+        !If
+          - IsEC2
+          -
+            - Type: spread
+              Field: host
+          - !Ref "AWS::NoValue"
       LoadBalancers:
         - ContainerName: !Ref ApplicationName
           ContainerPort: !Ref ContainerPort
@@ -269,6 +278,8 @@ Resources:
                 "Action": [ "sts:AssumeRole" ]
             }]
         }
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
       Policies:
         - PolicyName: root
           PolicyDocument:
@@ -290,7 +301,13 @@ Resources:
     Type: AWS::ECS::TaskDefinition
     Properties:
       Family: !Sub ${AWS::StackName}-${ApplicationName}
+      Cpu: !Ref 'ContainerCpu'
+      Memory: !Ref 'ContainerMemory'
+      NetworkMode: !If [ IsFargate , awsvpc, bridge]
+      ExecutionRoleArn: !Ref TaskDefinitionServiceRole
       TaskRoleArn: !Ref TaskDefinitionServiceRole
+      RequiresCompatibilities:
+        - !Ref EcsHostType
       ContainerDefinitions:
         - Name: !Ref ApplicationName
           Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}:${Tag}

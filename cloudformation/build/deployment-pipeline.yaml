@@ -66,6 +66,10 @@ Parameters:
     Description: The prefix SSM namespace where the stack can find needed parameters
     Type: String
 
+  EcsHostType:
+    Description: ECS Launch type - EC2 or Fargate
+    Type: AWS::SSM::Parameter::Name
+
 Conditions:
   WebhookSpecified: !Not [ !Equals [ !Ref SlackWebhook, "" ] ]
 
@@ -103,14 +107,17 @@ Resources:
             Statement:
               - Resource: "*"
                 Effect: Allow
+                # TODO:  this needs to be tightened-up.
                 Action:
                   - ecs:*
                   - ecr:*
+                  - s3:*
                   - iam:*
                   - route53:*
                   - elasticloadbalancing:*
                   - logs:*
                   - cloudwatch:*
+                  - ssm:*
 
   CodeBuildServiceRole:
     DependsOn: CloudFormationExecutionRole
@@ -363,7 +370,6 @@ Resources:
                       "Environment": "integration",
                       "FoundationStackName": "${AppStackName}-integration-foundation",
                       "ComputeStackName": "${AppStackName}-integration-compute-ecs",
-                      "InfraDevBucket": "${InfraDevBucketBase}.integration",
                       "PublicDomainName": "${PublicDomainName}",
                       "Repository": "${Repository}",
                       "ApplicationName": "${ApplicationName}",
@@ -374,6 +380,7 @@ Resources:
                       "TaskDesiredCount": "${EnvironmentTaskDesiredCount}",
                       "ListenerRulePriority": "${ListenerRulePriority}",
                       "SsmEnvironmentNamespace": "${SsmNamespacePrefix}/env/integration",
+                      "EcsHostType": "${EcsHostType}",
                       "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                     }
                   - EnvironmentTaskDesiredCount: !FindInMap [ EnvironmentDefaults, integration, DesiredTasks ]
@@ -415,7 +422,6 @@ Resources:
                       "Environment": "staging",
                       "FoundationStackName": "${AppStackName}-staging-foundation",
                       "ComputeStackName": "${AppStackName}-staging-compute-ecs",
-                      "InfraDevBucket": "${InfraDevBucketBase}.staging",
                       "PublicDomainName": "${PublicDomainName}",
                       "Repository": "${Repository}",
                       "ApplicationName": "${ApplicationName}",
@@ -426,6 +432,7 @@ Resources:
                       "TaskDesiredCount": "${EnvironmentTaskDesiredCount}",
                       "ListenerRulePriority": "${ListenerRulePriority}",
                       "SsmEnvironmentNamespace": "${SsmNamespacePrefix}/env/staging",
+                      "EcsHostType": "${EcsHostType}",
                       "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                     }
                   - EnvironmentTaskDesiredCount: !FindInMap [ EnvironmentDefaults, staging, DesiredTasks ]
@@ -459,7 +466,6 @@ Resources:
                       "Environment": "production",
                       "FoundationStackName": "${AppStackName}-production-foundation",
                       "ComputeStackName": "${AppStackName}-production-compute-ecs",
-                      "InfraDevBucket": "${InfraDevBucketBase}.production",
                       "PublicDomainName": "${PublicDomainName}",
                       "Repository": "${Repository}",
                       "ApplicationName": "${ApplicationName}",
@@ -470,6 +476,7 @@ Resources:
                       "TaskDesiredCount": "${EnvironmentTaskDesiredCount}",
                       "ListenerRulePriority": "${ListenerRulePriority}",
                       "SsmEnvironmentNamespace": "${SsmNamespacePrefix}/env/production",
+                      "EcsHostType": "${EcsHostType}",
                       "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                     }
                   - EnvironmentTaskDesiredCount: !FindInMap [ EnvironmentDefaults, production, DesiredTasks ]

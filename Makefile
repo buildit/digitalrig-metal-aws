@@ -79,6 +79,10 @@ delete-db-deps:
 		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}
 
 create-deps: check-existing-riglet
+	@echo "Set/update Compute SSM parameters: /${OWNER}/${PROJECT}/compute"
+	@read -p 'ECS Host Type (EC2 or FARGATE): (<ENTER> will keep existing) ' ECS_HOST_TYPE; \
+	        [ -z $$ECS_HOST_TYPE ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/compute/ECS_HOST_TYPE" --description "ECS Host Type" --type "String" --value "$$ECS_HOST_TYPE" --overwrite
+	@echo ""
 	@echo "Set/update SSM build secrets and parameters: /${OWNER}/${PROJECT}/build"
 	@read -p 'GitHub OAuth Token: (<ENTER> will keep existing) ' REPO_TOKEN; \
 	        [ -z $$REPO_TOKEN ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/build/REPO_TOKEN" --description "GitHub Repo Token" --type "SecureString" --value "$$REPO_TOKEN" --overwrite
@@ -86,20 +90,14 @@ create-deps: check-existing-riglet
 	@echo "Set/update INTEGRATION env SSM parameters: /${OWNER}/${PROJECT}/env/integration"
 	@read -p 'Integration Aurora Database Master Password: (<ENTER> will keep existing) ' DB_MASTER_PASSWORD; \
 	        [ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/integration/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (integration)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite
-	@read -p 'Integration Application Database User Password (make same as above): (<ENTER> will keep existing) ' APPLICATION_DATABASE_PASSWORD; \
-	        [ -z $$APPLICATION_DATABASE_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/integration/APPLICATION_DATABASE_PASSWORD" --description "Application Database User Password (integration)" --type "SecureString" --value "$$APPLICATION_DATABASE_PASSWORD" --overwrite
 	@echo ""
 	@echo "Set/update STAGING env SSM parameters: /${OWNER}/${PROJECT}/env/staging"
 	@read -p 'Staging Aurora Database Master Password: (<ENTER> will keep existing) ' DB_MASTER_PASSWORD; \
 	        [ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/staging/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (staging)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite
-	@read -p 'Staging Application Database User Password (make same as above): (<ENTER> will keep existing) ' APPLICATION_DATABASE_PASSWORD; \
-	        [ -z $$APPLICATION_DATABASE_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/staging/APPLICATION_DATABASE_PASSWORD" --description "Application Database User Password (staging)" --type "SecureString" --value "$$APPLICATION_DATABASE_PASSWORD" --overwrite
 	@echo ""
 	@echo "Set/update PRODUCTION env SSM parameters: /${OWNER}/${PROJECT}/env/production"
 	@read -p 'Production Aurora Database Master Password: (<ENTER> will keep existing) ' DB_MASTER_PASSWORD; \
 	        [ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/production/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (production)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite
-	@read -p 'Production Application Database User Password (make same as above): (<ENTER> will keep existing) ' APPLICATION_DATABASE_PASSWORD; \
-	        [ -z $$APPLICATION_DATABASE_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/production/APPLICATION_DATABASE_PASSWORD" --description "Application Database User Password (production)" --type "SecureString" --value "$$APPLICATION_DATABASE_PASSWORD" --overwrite
 
 check-existing-riglet:
 	@./scripts/protect-riglet.sh ${OWNER}-${PROJECT} ${REGION} list | [ `wc -l` -gt 0 ] && { echo "Riglet '${OWNER}-${PROJECT}' already exists in this region!"; exit 66; } || true
@@ -109,13 +107,11 @@ update-deps: create-deps
 # Destroy dependency S3 buckets, only destroy if empty
 delete-deps:
 	aws ssm delete-parameters --region ${REGION} --names \
+		"/${OWNER}/${PROJECT}/compute/ECS_HOST_TYPE" \
 		"/${OWNER}/${PROJECT}/build/REPO_TOKEN" \
 		"/${OWNER}/${PROJECT}/db/integration/DB_MASTER_PASSWORD" \
 		"/${OWNER}/${PROJECT}/db/staging/DB_MASTER_PASSWORD" \
-		"/${OWNER}/${PROJECT}/db/production/DB_MASTER_PASSWORD" \
-		"/${OWNER}/${PROJECT}/env/integration/APPLICATION_DATABASE_PASSWORD" \
-		"/${OWNER}/${PROJECT}/env/staging/APPLICATION_DATABASE_PASSWORD" \
-		"/${OWNER}/${PROJECT}/env/production/APPLICATION_DATABASE_PASSWORD"
+		"/${OWNER}/${PROJECT}/db/production/DB_MASTER_PASSWORD"
 
 ## Creates Foundation and Build
 
@@ -153,6 +149,7 @@ create-compute: create-compute-deps upload-compute
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
 			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
+			"ParameterKey=EcsHostType,ParameterValue=/${OWNER}/${PROJECT}/compute/ECS_HOST_TYPE" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
@@ -206,6 +203,7 @@ create-build: create-build-deps upload-build upload-lambdas
 			"ParameterKey=SlackWebhook,ParameterValue=${SLACK_WEBHOOK}" \
 			"ParameterKey=Project,ParameterValue=${PROJECT}" \
 			"ParameterKey=Owner,ParameterValue=${OWNER}" \
+			"ParameterKey=EcsHostType,ParameterValue=/${OWNER}/${PROJECT}/compute/ECS_HOST_TYPE" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
@@ -222,13 +220,17 @@ create-app: create-app-deps upload-app
 		--parameters \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
-			"ParameterKey=InfraDevBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
 			"ParameterKey=Repository,ParameterValue=${OWNER}-${PROJECT}-${REPO}-${REPO_BRANCH}-ecr-repo" \
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ContainerMemory,ParameterValue=${CONTAINER_MEMORY}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
+			"ParameterKey=EcsHostType,ParameterValue=/${OWNER}/${PROJECT}/compute/ECS_HOST_TYPE" \
+			"ParameterKey=Owner,ParameterValue=${OWNER}" \
+			"ParameterKey=Subdomain,ParameterValue=${SUBDOMAIN}" \
+			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
+			"ParameterKey=SsmEnvironmentNamespace,ParameterValue=/${OWNER}/${PROJECT}/env/${ENV}" \
 		--tags \
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
@@ -285,6 +287,7 @@ update-compute: upload-compute
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
 			"ParameterKey=ComputeBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" \
 			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
+			"ParameterKey=EcsHostType,ParameterValue=/${OWNER}/${PROJECT}/compute/ECS_HOST_TYPE" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
@@ -335,6 +338,7 @@ update-build: upload-build upload-lambdas
 			"ParameterKey=SlackWebhook,ParameterValue=${SLACK_WEBHOOK}" \
 			"ParameterKey=Project,ParameterValue=${PROJECT}" \
 			"ParameterKey=Owner,ParameterValue=${OWNER}" \
+			"ParameterKey=EcsHostType,ParameterValue=/${OWNER}/${PROJECT}/compute/ECS_HOST_TYPE" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
@@ -350,13 +354,17 @@ update-app: upload-app
 		--parameters \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
-			"ParameterKey=InfraDevBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
 			"ParameterKey=Repository,ParameterValue=${OWNER}-${PROJECT}-${REPO}-${REPO_BRANCH}-ecr-repo" \
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ContainerMemory,ParameterValue=${CONTAINER_MEMORY}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
+			"ParameterKey=EcsHostType,ParameterValue=/${OWNER}/${PROJECT}/compute/ECS_HOST_TYPE" \
+			"ParameterKey=Owner,ParameterValue=${OWNER}" \
+			"ParameterKey=Subdomain,ParameterValue=${SUBDOMAIN}" \
+			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
+			"ParameterKey=SsmEnvironmentNamespace,ParameterValue=/${OWNER}/${PROJECT}/env/${ENV}" \
 		--tags \
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
@@ -534,7 +542,7 @@ upload-app:
 	@cd ${pwd}
 	@aws s3 cp cloudformation/app/templates.zip s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}/templates/
 	@rm -rf cloudformation/app/templates.zip
-	@aws s3 cp cloudformation/app/app.yaml s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}/templates/
+	@aws s3 cp --recursive cloudformation/app/ s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}/templates/
 
 ## Upload Compute ECS Templates
 upload-compute:
