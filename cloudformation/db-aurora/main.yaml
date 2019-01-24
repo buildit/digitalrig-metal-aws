@@ -1,7 +1,7 @@
 ---
 
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Database subnets and instance.
+Description: Database Cluster
 
 Parameters:
   FoundationStackName:
@@ -18,11 +18,11 @@ Parameters:
     AllowedValues:
       - db.t2.small
       - db.t2.medium
-      - db.r3.large
-      - db.r3.xlarge
-      - db.r3.2xlarge
-      - db.r3.4xlarge
-      - db.r3.8xlarge
+      - db.r4.large
+      - db.r4.xlarge
+      - db.r4.2xlarge
+      - db.r4.4xlarge
+      - db.r4.8xlarge
 
   Environment:
     Description: Stack environment
@@ -50,6 +50,13 @@ Parameters:
     Description: Name of the database created
     Type: String
 
+  DbHostType:
+    Type: AWS::SSM::Parameter::Value<String>
+
+  DbBucket:
+    Description: DB S3 Bucket
+    Type: String
+
 Mappings:
   EnvironmentMap:
     integration:
@@ -69,8 +76,7 @@ Mappings:
       EnhancedMonitoring: false
 
 Conditions:
-  ShouldCreateReplica: !Equals [ !FindInMap [ EnvironmentMap, !Ref Environment, Replication ], true ]
-  ShouldEnableEnhancedMonitoring: !Equals [ !FindInMap [ EnvironmentMap, !Ref Environment, EnhancedMonitoring ], true ]
+  CreateDbProvisionedHosts: !Equals [ !Ref DbHostType, provisioned ]
 
 Resources:
   DbSubnetPrivateA:
@@ -133,29 +139,11 @@ Resources:
       VpcId:
         Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
 
-  DatabaseMonitoringRole:
-    Condition: ShouldEnableEnhancedMonitoring
-    Type: 'AWS::IAM::Role'
-    Properties:
-      Path: /
-      ManagedPolicyArns:
-        - 'arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole'
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: 'rds.amazonaws.com'
-            Action: 'sts:AssumeRole'
-          - Effect: Allow
-            Principal:
-              Service: 'monitoring.rds.amazonaws.com'
-            Action: 'sts:AssumeRole'
-
   DatabaseCluster:
     Type: AWS::RDS::DBCluster
     Properties:
       Engine: aurora
+      EngineMode: !Ref DbHostType
       MasterUsername: !Ref MasterUsername
       MasterUserPassword: !Ref MasterPassword
       BackupRetentionPeriod: !FindInMap [ EnvironmentMap, !Ref Environment, BackupRetention ]
@@ -163,29 +151,6 @@ Resources:
       VpcSecurityGroupIds:
         - !Ref DatabaseSecurityGroup
       DatabaseName: !Ref DatabaseName
-
-  DatabasePrimaryInstance:
-    Type: AWS::RDS::DBInstance
-    Properties:
-      Engine: aurora
-      DBClusterIdentifier: !Ref DatabaseCluster
-      DBInstanceClass: !Ref InstanceType
-      DBSubnetGroupName: !Ref DatabaseSubnetGroup
-      CopyTagsToSnapshot: true
-      MonitoringInterval: !If [ ShouldEnableEnhancedMonitoring , 60, 0]
-      MonitoringRoleArn: !If [ ShouldEnableEnhancedMonitoring, !Ref DatabaseMonitoringRole, !Ref "AWS::NoValue" ]
-
-  DatabaseReplicaInstance:
-    Type: AWS::RDS::DBInstance
-    Condition: ShouldCreateReplica
-    Properties:
-      Engine: aurora
-      DBClusterIdentifier: !Ref DatabaseCluster
-      DBInstanceClass: !Ref InstanceType
-      DBSubnetGroupName: !Ref DatabaseSubnetGroup
-      CopyTagsToSnapshot: true
-      MonitoringInterval: !If [ ShouldEnableEnhancedMonitoring , 60, 0]
-      MonitoringRoleArn: !If [ ShouldEnableEnhancedMonitoring, !Ref DatabaseMonitoringRole, !Ref "AWS::NoValue" ]
 
   DatabaseInternalDns:
     Type: AWS::Route53::RecordSetGroup
@@ -203,125 +168,22 @@ Resources:
         ResourceRecords:
         - !GetAtt DatabaseCluster.Endpoint.Address
 
-  DatabasePrimaryCPUAlarm:
-    Type: AWS::CloudWatch::Alarm
+  DbProvisionedHosts:
+    Condition: CreateDbProvisionedHosts
+    DependsOn:
+      - DatabaseCluster
+    Type: AWS::CloudFormation::Stack
     Properties:
-      AlarmDescription: Primary database CPU utilization is over 80%.
-      Namespace: AWS/RDS
-      MetricName: CPUUtilization
-      Unit: Percent
-      Statistic: Average
-      Period: 300
-      EvaluationPeriods: 2
-      Threshold: 80
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      Dimensions:
-        - Name: DBInstanceIdentifier
-          Value: !Ref DatabasePrimaryInstance
-      AlarmActions:
-        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
-      InsufficientDataActions:
-        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
-
-  DatabaseReplicaCPUAlarm:
-    Condition: ShouldCreateReplica
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmDescription: Replica database CPU utilization is over 80%.
-      Namespace: AWS/RDS
-      MetricName: CPUUtilization
-      Unit: Percent
-      Statistic: Average
-      Period: 300
-      EvaluationPeriods: 2
-      Threshold: 80
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      Dimensions:
-        - Name: DBInstanceIdentifier
-          Value: !Ref DatabaseReplicaInstance
-      AlarmActions:
-        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
-      InsufficientDataActions:
-        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
-
-  DatabasePrimaryMemoryAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmDescription: Primary database freeable memory is under 700MB.
-      Namespace: AWS/RDS
-      MetricName: FreeableMemory
-      Unit: Bytes
-      Statistic: Average
-      Period: 300
-      EvaluationPeriods: 2
-      Threshold: 200000000
-      ComparisonOperator: LessThanOrEqualToThreshold
-      Dimensions:
-        - Name: DBInstanceIdentifier
-          Value: !Ref DatabasePrimaryInstance
-      AlarmActions:
-        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
-      InsufficientDataActions:
-        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
-
-  DatabaseReplicaMemoryAlarm:
-    Condition: ShouldCreateReplica
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmDescription: Replica database freeable memory is under 700MB.
-      Namespace: AWS/RDS
-      MetricName: FreeableMemory
-      Unit: Bytes
-      Statistic: Average
-      Period: 300
-      EvaluationPeriods: 2
-      Threshold: 200000000
-      ComparisonOperator: LessThanOrEqualToThreshold
-      Dimensions:
-        - Name: DBInstanceIdentifier
-          Value: !Ref DatabaseReplicaInstance
-      AlarmActions:
-        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
-      InsufficientDataActions:
-        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
-
-  DatabasePrimaryReplicationAlarm:
-    Condition: ShouldCreateReplica
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmDescription: Database replication latency is over 200ms.
-      Namespace: AWS/RDS
-      MetricName: AuroraReplicaLag
-      Unit: Milliseconds
-      Statistic: Average
-      Period: 300
-      EvaluationPeriods: 2
-      Threshold: 200
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      Dimensions:
-        - Name: DBInstanceIdentifier
-          Value: !Ref DatabaseReplicaInstance
-      AlarmActions:
-        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
-
-  DatabaseReplicaReplicationAlarm:
-    Condition: ShouldCreateReplica
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmDescription: Database replication latency is over 200ms.
-      Namespace: AWS/RDS
-      MetricName: AuroraReplicaLag
-      Unit: Milliseconds
-      Statistic: Average
-      Period: 300
-      EvaluationPeriods: 2
-      Threshold: 200
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      Dimensions:
-        - Name: DBInstanceIdentifier
-          Value: !Ref DatabaseReplicaInstance
-      AlarmActions:
-        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
+      Parameters:
+        FoundationStackName: !Ref FoundationStackName
+        InstanceType: !Ref InstanceType
+        Environment: !Ref Environment
+        DatabaseCluster: !Ref DatabaseCluster
+        DatabaseSubnetGroup: !Ref DatabaseSubnetGroup
+        Replication: !FindInMap [ EnvironmentMap, !Ref Environment, Replication ]
+        EnhancedMonitoring: !FindInMap [ EnvironmentMap, !Ref Environment, EnhancedMonitoring ]
+      TemplateURL: !Sub https://s3.amazonaws.com/${DbBucket}/templates/provisioned-hosts.yaml
+      TimeoutInMinutes: 60
 
 # TODOS
 # resize an instance should not lose data

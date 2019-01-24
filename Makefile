@@ -83,6 +83,10 @@ create-deps: check-existing-riglet
 	@read -p 'ECS Host Type (EC2 or FARGATE): (<ENTER> will keep existing) ' ECS_HOST_TYPE; \
 	        [ -z $$ECS_HOST_TYPE ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/compute/ECS_HOST_TYPE" --description "ECS Host Type" --type "String" --value "$$ECS_HOST_TYPE" --overwrite
 	@echo ""
+	@echo "Set/update DB SSM parameters: /${OWNER}/${PROJECT}/db"
+	@read -p 'DB Host Type (provisioned or serverless): (<ENTER> will keep existing) ' DB_HOST_TYPE; \
+	        [ -z $$DB_HOST_TYPE ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/DB_HOST_TYPE" --description "DB Host Type" --type "String" --value "$$DB_HOST_TYPE" --overwrite
+	@echo ""
 	@echo "Set/update SSM build secrets and parameters: /${OWNER}/${PROJECT}/build"
 	@read -p 'GitHub OAuth Token: (<ENTER> will keep existing) ' REPO_TOKEN; \
 	        [ -z $$REPO_TOKEN ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/build/REPO_TOKEN" --description "GitHub Repo Token" --type "SecureString" --value "$$REPO_TOKEN" --overwrite
@@ -108,6 +112,7 @@ update-deps: create-deps
 delete-deps:
 	aws ssm delete-parameters --region ${REGION} --names \
 		"/${OWNER}/${PROJECT}/compute/ECS_HOST_TYPE" \
+		"/${OWNER}/${PROJECT}/db/DB_HOST_TYPE" \
 		"/${OWNER}/${PROJECT}/build/REPO_TOKEN" \
 		"/${OWNER}/${PROJECT}/db/integration/DB_MASTER_PASSWORD" \
 		"/${OWNER}/${PROJECT}/db/staging/DB_MASTER_PASSWORD" \
@@ -169,6 +174,8 @@ create-db: create-db-deps upload-db
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
 			"ParameterKey=MasterPassword,ParameterValue=\"$(shell aws ssm get-parameter --region ${REGION}  --output json --name /${OWNER}/${PROJECT}/db/${ENV}/DB_MASTER_PASSWORD --with-decryption | jq -r '.Parameter.Value')\"" \
 			"ParameterKey=DatabaseName,ParameterValue=${DATABASE_NAME}" \
+			"ParameterKey=DbHostType,ParameterValue=/${OWNER}/${PROJECT}/db/DB_HOST_TYPE" \
+			"ParameterKey=DbBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
@@ -305,6 +312,8 @@ update-db: upload-db
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
 			"ParameterKey=MasterPassword,ParameterValue=\"$(shell aws ssm get-parameter --region ${REGION} --output json --name /${OWNER}/${PROJECT}/db/${ENV}/DB_MASTER_PASSWORD --with-decryption | jq -r '.Parameter.Value')\"" \
 			"ParameterKey=DatabaseName,ParameterValue=${DATABASE_NAME}" \
+			"ParameterKey=DbHostType,ParameterValue=/${OWNER}/${PROJECT}/db/DB_HOST_TYPE" \
+			"ParameterKey=DbBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
