@@ -153,10 +153,26 @@ Resources:
           - !Ref DbSubnetPrivateA
           - !Ref DbSubnetPrivateB
 
+  DatabaseInternalDns:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--InternalDns"
+      Comment: DNS for Aurora.
+      RecordSets:
+      - Name: !Join
+          - '.'
+          - - "aurora"
+            - Fn::ImportValue: !Sub "${FoundationStackName}--InternalHostedZoneName"
+        Type: CNAME
+        TTL: '300'
+        ResourceRecords:
+        - !GetAtt DatabaseCluster.Endpoint.Address
+
   DatabaseSecurityGroup:
     Type: "AWS::EC2::SecurityGroup"
     Properties:
-      GroupDescription: !Sub ${AWS::StackName}
+      GroupDescription: !Sub ${AWS::StackName}-db
       SecurityGroupIngress:
         - SourceSecurityGroupId:
             Fn::ImportValue: !Sub "${ComputeStackName}--AppSecurityGroup"
@@ -186,22 +202,6 @@ Resources:
             MaxCapacity: !Ref MaxCapacity
           - !Ref "AWS::NoValue"
 
-  DatabaseInternalDns:
-    Type: AWS::Route53::RecordSetGroup
-    Properties:
-      HostedZoneId:
-        Fn::ImportValue: !Sub "${FoundationStackName}--InternalDns"
-      Comment: DNS for Aurora.
-      RecordSets:
-      - Name: !Join
-          - '.'
-          - - "aurora"
-            - Fn::ImportValue: !Sub "${FoundationStackName}--InternalHostedZoneName"
-        Type: CNAME
-        TTL: '300'
-        ResourceRecords:
-        - !GetAtt DatabaseCluster.Endpoint.Address
-
   DbProvisionedHosts:
     Condition: CreateDbProvisionedHosts
     DependsOn:
@@ -230,3 +230,6 @@ Outputs:
   DatabaseCluster:
     Description: Database cluster endpoint
     Value: !GetAtt DatabaseCluster.Endpoint.Address
+  DatabaseInternalDns:
+    Description: Database internal DNS endpoint
+    Value: !Ref DatabaseInternalDns

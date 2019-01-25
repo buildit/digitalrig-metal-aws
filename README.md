@@ -279,15 +279,10 @@ The `.make` file can also be created by copying `.make.example` to `.make` and m
 Example `.make` file with suggested values and comments (including optional values).
 
 ```ini
-DOMAIN = <Domain to use for Foundation> ("buildit.tools" unless you've created a custom zone)
-KEY_NAME = <EC2 SSH key name> (your side of an AWS-generated key pair for the region you'll run in)
 OWNER = <The owner of the stack>  (First initial + last name.)
 PROFILE = <AWS Profile Name> ("default" if you don't have multiple profiles).
 PROJECT = <Project Name> (e.g. "bookit")
 REGION = <AWS Region> (Whatever region you intend to run within.  Some regions don't support all resource types, so the common ones are best)
-DOMAIN_CERT = <AWS Certificate Manager GUID> ("0663e927-e990-4157-aef9-7dea87faa6ec" is already created for `us-east-1` and is your best starting point)
-EMAIL_ADDRESS = <optional> (Email address for potential notifications.  Recommended only for production riglets.)
-SLACK_WEBHOOK = <optional> (Webhook address to post build notifications  Recommended only for production riglets.)
 ```
 
 ### Building using Individual Makefile Targets

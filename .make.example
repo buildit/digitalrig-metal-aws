@@ -1,7 +1,4 @@
-DOMAIN = buildit.tools
-KEY_NAME = <your-region-keypair>
 OWNER = <jdoe>
 PROFILE = default
 PROJECT = <projectname>
 REGION = <us-east-1>
-DOMAIN_CERT = fea015e0-49a5-44b9-8c07-d78b1e942b85
