@@ -14,7 +14,7 @@ export AWS_PROFILE=${PROFILE}
 export AWS_REGION=${REGION}
 
 export SUBDOMAIN ?= ${REPO}
-
+export DB_HOST_TYPE = $(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/db/DB_HOST_TYPE --output json | jq -r '.Parameter.Value')
 
 create-foundation-deps:
 	@echo "Create Foundation S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}"
@@ -67,16 +67,20 @@ delete-compute-deps:
 		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}
 
 create-db-deps:
+ifneq (${DB_HOST_TYPE}, none)
 	@echo "Create DB S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}"
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}" --region "${REGION}"  2>/dev/null || \
 		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}  --region "${REGION}" # DB configs
 	sleep 60
 	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
+endif
 
 delete-db-deps:
+ifneq (${DB_HOST_TYPE}, none)
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}" --region "${REGION}" 2>/dev/null && \
 		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV} && \
 		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}
+endif
 
 create-deps: check-existing-riglet
 	@echo "Set/update Compute SSM parameters: /${OWNER}/${PROJECT}/compute"
@@ -84,7 +88,7 @@ create-deps: check-existing-riglet
 	        [ -z $$ECS_HOST_TYPE ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/compute/ECS_HOST_TYPE" --description "ECS Host Type" --type "String" --value "$$ECS_HOST_TYPE" --overwrite
 	@echo ""
 	@echo "Set/update DB SSM parameters: /${OWNER}/${PROJECT}/db"
-	@read -p 'DB Host Type (provisioned or serverless): (<ENTER> will keep existing) ' DB_HOST_TYPE; \
+	@read -p 'DB Host Type (provisioned or serverless or none): (<ENTER> will keep existing) ' DB_HOST_TYPE; \
 	        [ -z $$DB_HOST_TYPE ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/DB_HOST_TYPE" --description "DB Host Type" --type "String" --value "$$DB_HOST_TYPE" --overwrite
 	@echo ""
 	@echo "Set/update SSM build secrets and parameters: /${OWNER}/${PROJECT}/build"
@@ -162,10 +166,11 @@ create-compute: create-compute-deps upload-compute
 
 ## Create new CF db stack
 create-db: create-db-deps upload-db
+ifneq (${DB_HOST_TYPE}, none)
 	@echo "Creating ${OWNER}-${PROJECT}-${ENV}-db-aurora stack"
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-db-aurora" \
-                --region ${REGION} \
-                --disable-rollback \
+								--region ${REGION} \
+								--disable-rollback \
 		--template-body "file://cloudformation/db-aurora/main.yaml" \
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameters \
@@ -180,6 +185,7 @@ create-db: create-db-deps upload-db
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
 	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-db-aurora" --region ${REGION}
+endif
 
 ## Create new CF environment stacks
 create-environment: create-foundation create-compute create-db create-app-deps upload-app
@@ -301,9 +307,10 @@ update-compute: upload-compute
 	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" --region ${REGION}
 
 update-db: upload-db
+ifneq (${DB_HOST_TYPE}, none)
 	@echo "Updating ${OWNER}-${PROJECT}-${ENV}-db-aurora stack"
 	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-db-aurora" \
-                --region ${REGION} \
+								--region ${REGION} \
 		--template-body "file://cloudformation/db-aurora/main.yaml" \
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameters \
@@ -318,6 +325,7 @@ update-db: upload-db
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
 	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-db-aurora" --region ${REGION}
+endif
 
 ## Update CF environment stacks
 update-environment: update-foundation update-compute update-db upload-app
@@ -503,10 +511,12 @@ delete-compute: delete-compute-stack delete-compute-deps
 
 ## Deletes the DB CF stack
 delete-db-stack:
+ifneq (${DB_HOST_TYPE}, none)
 	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the ${ENV} DB Stack?"; then \
 		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-${ENV}-db-aurora"; \
 		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-db-aurora" --region ${REGION}; \
 	fi
+endif
 
 delete-db: delete-db-stack delete-db-deps
 
@@ -558,7 +568,9 @@ upload-compute:
 	@aws s3 cp --recursive cloudformation/compute-ecs/ s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}/templates/
 
 upload-db:
+ifneq (${DB_HOST_TYPE}, none)
 	@aws s3 cp --recursive cloudformation/db-aurora/ s3://rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}/templates/
+endif
 
 ## Upload Build CF Templates
 upload-build:
