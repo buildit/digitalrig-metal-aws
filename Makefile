@@ -114,15 +114,15 @@ create-deps: check-existing-riglet
 	@echo ""
 	@echo "Set/update INTEGRATION env SSM parameters: /${OWNER}/${PROJECT}/env/integration"
 	@read -p 'Integration Aurora Database Master Password: (<ENTER> will keep existing) ' DB_MASTER_PASSWORD; \
-	        [ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/integration/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (integration)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite
+	        [ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/integration/db/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (integration)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite
 	@echo ""
 	@echo "Set/update STAGING env SSM parameters: /${OWNER}/${PROJECT}/env/staging"
 	@read -p 'Staging Aurora Database Master Password: (<ENTER> will keep existing) ' DB_MASTER_PASSWORD; \
-	        [ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/staging/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (staging)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite
+	        [ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/staging/db/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (staging)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite
 	@echo ""
 	@echo "Set/update PRODUCTION env SSM parameters: /${OWNER}/${PROJECT}/env/production"
 	@read -p 'Production Aurora Database Master Password: (<ENTER> will keep existing) ' DB_MASTER_PASSWORD; \
-	        [ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/production/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (production)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite
+	        [ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/production/db/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (production)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite
 
 check-existing-riglet:
 	@./scripts/protect-riglet.sh ${OWNER}-${PROJECT} ${REGION} list | [ `wc -l` -gt 0 ] && { echo "Riglet '${OWNER}-${PROJECT}' already exists in this region!"; exit 66; } || true
@@ -141,9 +141,9 @@ delete-deps:
 		"/${OWNER}/${PROJECT}/compute/ECS_HOST_TYPE" \
 		"/${OWNER}/${PROJECT}/db/DB_TYPE" \
 		"/${OWNER}/${PROJECT}/db/DB_HOST_TYPE" \
-		"/${OWNER}/${PROJECT}/db/integration/DB_MASTER_PASSWORD" \
-		"/${OWNER}/${PROJECT}/db/staging/DB_MASTER_PASSWORD" \
-		"/${OWNER}/${PROJECT}/db/production/DB_MASTER_PASSWORD"
+		"/${OWNER}/${PROJECT}/env/integration/db/DB_MASTER_PASSWORD" \
+		"/${OWNER}/${PROJECT}/env/staging/db/DB_MASTER_PASSWORD" \
+		"/${OWNER}/${PROJECT}/env/production/db/DB_MASTER_PASSWORD"
 
 ## Creates Foundation and Build
 
@@ -200,7 +200,7 @@ ifeq (${DB_TYPE}, aurora)
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
 			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
-			"ParameterKey=MasterPassword,ParameterValue=\"$(shell aws ssm get-parameter --region ${REGION}  --output json --name /${OWNER}/${PROJECT}/db/${ENV}/DB_MASTER_PASSWORD --with-decryption | jq -r '.Parameter.Value')\"" \
+			"ParameterKey=MasterPassword,ParameterValue=\"$(shell aws ssm get-parameter --region ${REGION}  --output json --name /${OWNER}/${PROJECT}/env/${ENV}/db/DB_MASTER_PASSWORD --with-decryption | jq -r '.Parameter.Value')\"" \
 			"ParameterKey=DatabaseName,ParameterValue=${DATABASE_NAME}" \
 			"ParameterKey=DbHostType,ParameterValue=/${OWNER}/${PROJECT}/db/DB_HOST_TYPE" \
 			"ParameterKey=DbBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.db-${DB_TYPE}.${ENV}" \
@@ -260,6 +260,7 @@ create-build: create-build-deps upload-build upload-lambdas
 			"ParameterKey=Project,ParameterValue=${PROJECT}" \
 			"ParameterKey=Owner,ParameterValue=${OWNER}" \
 			"ParameterKey=EcsHostType,ParameterValue=/${OWNER}/${PROJECT}/compute/ECS_HOST_TYPE" \
+			"ParameterKey=HealthCheckPath,ParameterValue=${HEALTH_CHECK_PATH}" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
@@ -360,7 +361,7 @@ ifeq (${DB_TYPE}, aurora)
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
 			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
-			"ParameterKey=MasterPassword,ParameterValue=\"$(shell aws ssm get-parameter --region ${REGION} --output json --name /${OWNER}/${PROJECT}/db/${ENV}/DB_MASTER_PASSWORD --with-decryption | jq -r '.Parameter.Value')\"" \
+			"ParameterKey=MasterPassword,ParameterValue=\"$(shell aws ssm get-parameter --region ${REGION} --output json --name /${OWNER}/${PROJECT}/env/${ENV}/db/DB_MASTER_PASSWORD --with-decryption | jq -r '.Parameter.Value')\"" \
 			"ParameterKey=DatabaseName,ParameterValue=${DATABASE_NAME}" \
 			"ParameterKey=DbHostType,ParameterValue=/${OWNER}/${PROJECT}/db/DB_HOST_TYPE" \
 			"ParameterKey=DbBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.db-${DB_TYPE}.${ENV}" \
@@ -418,6 +419,7 @@ update-build: upload-build upload-lambdas
 			"ParameterKey=Project,ParameterValue=${PROJECT}" \
 			"ParameterKey=Owner,ParameterValue=${OWNER}" \
 			"ParameterKey=EcsHostType,ParameterValue=/${OWNER}/${PROJECT}/compute/ECS_HOST_TYPE" \
+			"ParameterKey=HealthCheckPath,ParameterValue=${HEALTH_CHECK_PATH}" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"

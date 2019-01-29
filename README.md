@@ -119,6 +119,19 @@ details, which is both a good and bad thing.
   You will be asked some questions, the answers of which populate parameters in AWS' SSM Param Store. _Please take special note of the following_:
   * You will need a personal Github repo token.  Please see <http://tinyurl.com/yb5lxtr6>
   * There are special cases to take into account, so _pay close attention to the prompts_.  
+    * KEY_NAME - EC2 SSH key name (your side of an AWS-generated key pair for the region you'll run in)
+    * DOMAIN - Domain to use for Foundation (e.g. "buildit.tools")
+    * DOMAIN_CERT - AWS Certification Manager GUID ("fea015e0-49a5-44b9-8c07-d78b1e942b85" is already created for buildit.tools in us-east-1 and is your best starting point)
+    * (optional) EMAIL_ADDRESS - email address to which build notifications are sent.
+      > If not included, no notifications are sent.  Be aware of this when issuing `make create-update` commands on existing stacks!
+    * (optional) SLACK_WEBHOOK - a slack URL to which build notifications are sent.
+      > If not included, no notifications are sent.  Be aware of this when issuing `make create-update` commands on existing stacks!
+    * REPO_TOKEN - personal Github repo token (instructions above)
+    * ECS_HOST_TYPE - the ECS hosting type (`EC2` or `FARGATE`)
+    * DB_TYPE - the Database type (`aurora` or `couch` or `none`)
+    * (required if DB_TYPE = aurora) DB_HOST_TYPE - the hosting type (`provisioned` or `serverless`)
+    * (required if DB_TYPE = aurora) DB_MASTER_PASSWORD - the master password (per environment)
+
 * `make protect-riglet` to protect a running riglet (the Cfn stacks, anyway) from unintended deletion (`un-protect-riglet` to reverse.)
 * `./delete-standard-riglet.sh` to delete it all.
 
@@ -218,10 +231,23 @@ before proceeding, or consider using a Change Set.
 
 And here are the available *database* scaling parameters.
 
+#### Aurora RDS (provisioned)
+
 | Parameter             | Scaling Style | Stack         | Parameter                                                                   |
 | :---                  | :---          | :---          | :---                                                                        |
 | Size of RDS Instances | Vertical      | db-aurora     | InstanceType                                                                |
-| # of RDS Instances    | Vertical      | db-aurora     | _currently via Replication property in Mappings inside db-aurora/main.yaml_ |
+| # of RDS Instances    | Horizontal    | db-aurora     | _currently via Replication property in Mappings inside db-aurora/main.yaml_ |
+
+#### Aurora RDS (serverless)
+
+| Parameter   | Scaling Style | Stack         | Parameter   |
+| :---        | :---          | :---          | :---        |
+| Minimum ACU | Vertical      | db-aurora     | MinCapacity |
+| Maximum ACU | Vertical      | db-aurora     | MaxCapacity |
+
+#### CouchDB
+
+TBD
 
 ---
 
@@ -314,10 +340,9 @@ the cloud, sort-of).  So what we're doing in this step is creating the build pip
   * CONTAINER_PORT is the port that the application exposes (e.g. 8080)
   * CONTAINER_MEMORY is the amount of memory (in MiB) to reserve for this application (e.g. 512).
   * LISTENER_RULE_PRIORITY is the priority of the the rule that gets created in the ALB.  While these won't ever conflict, ALB requires a unique number across all apps that share the ALB.  See [Application specifics](#application-specifics)
+  * HEALTH_CHECK_PATH is the path that is checked by the target group to determine health of the container
   * (optional) REPO_BRANCH is the branch name for the repo - MUST NOT CONTAIN SLASHES!
   * (optional) SUBDOMAIN is placed in front of the DOMAIN configured in the .make file when generating ALB listener rules.  Defaults to REPO.
-  * (optional) SLACK_WEBHOOK is a slack URL to which build notifications are sent.
-    > If not included, no notifications are sent.  Be aware of this when issuing `make create-update` commands on existing stacks!
 
 ##### Deployed Applications
 

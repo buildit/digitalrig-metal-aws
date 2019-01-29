@@ -97,7 +97,7 @@ Resources:
       RecordSets:
       - Name: !Join
           - '.'
-          - - "couchdb"
+          - - "couch"
             - Fn::ImportValue: !Sub "${FoundationStackName}--InternalHostedZoneName"
         Type: CNAME
         TTL: '300'

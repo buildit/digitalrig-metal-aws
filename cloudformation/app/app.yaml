@@ -67,6 +67,11 @@ Parameters:
     Description: The priority for the listener rule
     Type: Number
 
+  HealthCheckPath:
+    Description: HTTP request path used for health checks against related container.
+    Type: String
+    Default: /
+
 Conditions:
   ShouldCreatePreferredCname: !Equals [ !Ref Environment, production ]
   ShouldCreateErrorLogAlarm: !Not [ !Equals [ !Ref Environment, integration ] ]
@@ -84,7 +89,7 @@ Resources:
       Matcher:
         HttpCode: 200-399
       HealthCheckIntervalSeconds: 10
-      HealthCheckPath: /
+      HealthCheckPath: !Ref HealthCheckPath
       HealthCheckProtocol: HTTP
       HealthCheckTimeoutSeconds: 5
       HealthyThresholdCount: 2
@@ -173,6 +178,7 @@ Resources:
         FullyQualifiedDomainName: !Sub "${Owner}-${Environment}-${ApplicationName}.${PublicDomainName}."
         EnableSNI: true
         FailureThreshold: 3
+        ResourcePath: !Ref HealthCheckPath
       HealthCheckTags:
       - Key: "Name"
         Value: !Sub "${Owner}-${Environment}-${ApplicationName}.${PublicDomainName}."
