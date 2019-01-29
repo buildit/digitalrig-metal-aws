@@ -166,6 +166,7 @@ Resources:
                 Effect: Allow
                 Action:
                   - ssm:GetParameters
+  
 
   CodePipelineServiceRole:
     Type: AWS::IAM::Role
@@ -445,6 +446,7 @@ Resources:
                       "TaskDesiredCount": "${EnvironmentTaskDesiredCount}",
                       "ListenerRulePriority": "${ListenerRulePriority}",
                       "SsmEnvironmentNamespace": "${SsmNamespacePrefix}/env/integration",
+                      "EcsHostType": "${EcsHostType}",
                       "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                     }
                   - EnvironmentTaskDesiredCount: !FindInMap [ EnvironmentDefaults, integration, DesiredTasks ]
@@ -497,6 +499,7 @@ Resources:
                       "TaskDesiredCount": "${EnvironmentTaskDesiredCount}",
                       "ListenerRulePriority": "${ListenerRulePriority}",
                       "SsmEnvironmentNamespace": "${SsmNamespacePrefix}/env/staging",
+                      "EcsHostType": "${EcsHostType}",
                       "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                     }
                   - EnvironmentTaskDesiredCount: !FindInMap [ EnvironmentDefaults, staging, DesiredTasks ]
@@ -541,6 +544,7 @@ Resources:
                       "TaskDesiredCount": "${EnvironmentTaskDesiredCount}",
                       "ListenerRulePriority": "${ListenerRulePriority}",
                       "SsmEnvironmentNamespace": "${SsmNamespacePrefix}/env/production",
+                      "EcsHostType": "${EcsHostType}",
                       "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                     }
                   - EnvironmentTaskDesiredCount: !FindInMap [ EnvironmentDefaults, production, DesiredTasks ]
@@ -569,7 +573,7 @@ Resources:
                 - Name: ProductionEnvironment
               RunOrder: 3
 
-  Notification:
+  BuildNotification:
     Type: AWS::CloudFormation::Stack
     Condition: WebhookSpecified
     Properties:
@@ -583,6 +587,7 @@ Resources:
         Project: !Ref Project
         Owner: !Ref Owner
         Pipeline: !Ref BuildPipeline
+        PipelineType: build
         ReportsUrl: !Sub "http://${BuildArtifactsBucket}.s3-website-${AWS::Region}.amazonaws.com/${AWS::StackName}/reports"
         PipelineUrl: !Join
           - ''
@@ -590,6 +595,30 @@ Resources:
             - !Ref 'AWS::Region'
             - '#/view/'
             - !Ref BuildPipeline
+
+  DeployNotification:
+    Type: AWS::CloudFormation::Stack
+    Condition: WebhookSpecified
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${BuildArtifactsBucket}/templates/notification.yaml
+      Parameters:
+        AppStackName: !Ref AppStackName
+        BuildArtifactsBucket: !Ref BuildArtifactsBucket
+        GitHubRepo: !Ref GitHubRepo
+        GitHubBranch: !Ref GitHubBranch
+        SlackWebhook: !Ref SlackWebhook
+        Project: !Ref Project
+        Owner: !Ref Owner
+        Pipeline: !Ref DeployPipeline
+        PipelineType: deploy
+        ReportsUrl: !Sub "http://${BuildArtifactsBucket}.s3-website-${AWS::Region}.amazonaws.com/${AWS::StackName}/reports"
+        PipelineUrl: !Join
+          - ''
+          - - 'https://console.aws.amazon.com/codepipeline/home?region='
+            - !Ref 'AWS::Region'
+            - '#/view/'
+            - !Ref DeployPipeline
+
 
 Outputs:
   BuildPipelineUrl:

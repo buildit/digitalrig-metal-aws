@@ -29,6 +29,10 @@ Parameters:
   Pipeline:
     Description: The pipeline for which notifications are generated.
     Type: String
+  
+  PipelineType:
+    Description: Type of pipeline, e.g., build or deploy
+    Type: String
 
   ReportsUrl:
     Type: String
@@ -88,7 +92,7 @@ Resources:
   EventRuleBuildFailures:
     Type: "AWS::Events::Rule"
     Properties:
-      Name: !Sub "${AppStackName}-${GitHubRepo}-${GitHubBranch}-build-fail-rule"
+      Name: !Sub "${AppStackName}-${GitHubRepo}-${GitHubBranch}-${PipelineType}-fail-rule"
       Description: "Traps stage failures and notifies slack"
       EventPattern:
         source:
@@ -106,7 +110,7 @@ Resources:
   EventRuleBuildSuccesses:
     Type: "AWS::Events::Rule"
     Properties:
-      Name: !Sub "${AppStackName}-${GitHubRepo}-${GitHubBranch}-build-pass-rule"
+      Name: !Sub "${AppStackName}-${GitHubRepo}-${GitHubBranch}-${PipelineType}-pass-rule"
       Description: "Traps stage successes and notifies slack"
       EventPattern:
         source:
