@@ -323,7 +323,7 @@ Resources:
               Configuration:
                 BucketName: !Ref BuildArtifactsBucket
                 Extract: false
-                ObjectKey: latestbuild/build.json
+                ObjectKey: !Sub "${ApplicationName}/latestbuild/build.json"
               InputArtifacts:
                 - Name: BuildOutput
             - Name: WriteSourceOutput
@@ -335,7 +335,7 @@ Resources:
               Configuration:
                 BucketName: !Ref BuildArtifactsBucket
                 Extract: false
-                ObjectKey: latestbuild/src.zip
+                ObjectKey: !Sub "${ApplicationName}/latestbuild/src.zip"
               InputArtifacts:
                 - Name: App
 
@@ -364,7 +364,7 @@ Resources:
                 - Name: BuildOutput
               Configuration:
                 S3Bucket: !Ref BuildArtifactsBucket
-                S3ObjectKey: latestbuild/build.json
+                S3ObjectKey: !Sub "${ApplicationName}/latestbuild/build.json"
               RunOrder: 1
             - Name: BuildSrc
               ActionTypeId:
@@ -376,7 +376,7 @@ Resources:
                 - Name: App
               Configuration:
                 S3Bucket: !Ref BuildArtifactsBucket
-                S3ObjectKey: latestbuild/src.zip
+                S3ObjectKey: !Sub "${ApplicationName}/latestbuild/src.zip"
               RunOrder: 1    
             - Name: AppIntegrationTemplate
               ActionTypeId:
