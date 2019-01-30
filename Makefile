@@ -6,6 +6,8 @@ export PROJECT ?= projectname
 export REGION ?= us-east-1
 export REPO_BRANCH ?= master
 export DATABASE_NAME ?= ${PROJECT}
+export CONTAINER_MEMORY ?= 512 #smallest FARGATE value
+export HEALTH_CHECK_PATH = /
 
 export AWS_PROFILE=${PROFILE}
 export AWS_REGION=${REGION}
