@@ -335,7 +335,7 @@ Resources:
               Configuration:
                 BucketName: !Ref BuildArtifactsBucket
                 Extract: false
-                ObjectKey: "${ApplicationName}/latestbuild/src.zip"
+                ObjectKey: !Sub "${ApplicationName}/latestbuild/src.zip"
               InputArtifacts:
                 - Name: App
 
