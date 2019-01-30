@@ -93,7 +93,7 @@ create-deps: check-existing-riglet
 	        [ -z $$KEY_NAME ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/KEY_NAME" --description "SSH Key Name" --type "String" --value "$$KEY_NAME" --overwrite
 	@read -p 'Domain Name: (<ENTER> will keep existing) ' DOMAIN; \
 	        [ -z $$DOMAIN ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/DOMAIN" --description "Domain Name" --type "String" --value "$$DOMAIN" --overwrite
-	@read -p 'Domain Cert Name: (<ENTER> will keep existing) ' DOMAIN_CERT; \
+	@read -p 'Domain Cert ID (UUID): (<ENTER> will keep existing) ' DOMAIN_CERT; \
 	        [ -z $$DOMAIN_CERT ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/DOMAIN_CERT" --description "Domain Cert Name" --type "String" --value "$$DOMAIN_CERT	" --overwrite
 	@read -p 'Notification Email Address (optional): (<ENTER> will keep existing) ' EMAIL_ADDRESS; \
 	        [ -z $$EMAIL_ADDRESS ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/EMAIL_ADDRESS" --description "Notification Email Address" --type "String" --value "$$EMAIL_ADDRESS	" --overwrite
