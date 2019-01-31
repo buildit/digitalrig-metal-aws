@@ -77,7 +77,7 @@ Resources:
       HealthyThresholdCount: 2
       TargetGroupAttributes:
         - Key: deregistration_delay.timeout_seconds
-          Value: 30
+          Value: '30'
 
 Outputs:
   SecurityGroup:

@@ -95,7 +95,7 @@ Resources:
       HealthyThresholdCount: 2
       TargetGroupAttributes:
         - Key: deregistration_delay.timeout_seconds
-          Value: 30
+          Value: "30"
       TargetType: !If [ IsFargate , ip, instance]
 
   AppEnvDns:
@@ -209,7 +209,7 @@ Resources:
       LogGroupName: !Ref CloudWatchLogsGroup
       FilterPattern: "[date, time, level=ERROR, process, separator, thread_name, logger_name, ...]"
       MetricTransformations:
-        - MetricValue: 1
+        - MetricValue: "1"
           MetricNamespace: Buildit/Application
           MetricName: !Sub "${Owner}${ApplicationName}${Environment}ErrorCount"
 
@@ -335,6 +335,8 @@ Resources:
             - Name: AWS_ENV_PATH
               Value: !Ref SsmEnvironmentNamespace
             # APPLICATION ENVIRONMENT VARIABLES CURRENTLY GO HERE... TODO: need a better mechanism
+            - Name: ENABLE_TEST_USER
+              Value: "true"
 
 Outputs:
   ApplicationUrl:

@@ -4,10 +4,6 @@ Description: Public DNS
 AWSTemplateFormatVersion: 2010-09-09
 
 Parameters:
-  Environment:
-    Description: Environment name
-    Type: String
-
   FoundationStackName:
     Description: Foundation stack name
     Type: String

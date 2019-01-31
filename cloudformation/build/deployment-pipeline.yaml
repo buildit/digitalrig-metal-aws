@@ -20,6 +20,7 @@ Parameters:
     Type: String
 
   Owner:
+    Description: Person or organization responsible for the running riglet.
     Type: String
 
   GitHubBranch:
@@ -56,10 +57,6 @@ Parameters:
     Default: ""
 
   Project:
-    Type: String
-
-  Owner:
-    Description: Person or organization responsible for the running riglet.
     Type: String
 
   SsmNamespacePrefix:
@@ -301,7 +298,7 @@ Resources:
               ActionTypeId:
                 Category: Source
                 Owner: ThirdParty
-                Version: 1
+                Version: '1'
                 Provider: GitHub
               Configuration:
                 Owner: !Ref GitHubOwner
@@ -318,7 +315,7 @@ Resources:
               ActionTypeId:
                 Category: Build
                 Owner: AWS
-                Version: 1
+                Version: '1'
                 Provider: CodeBuild
               Configuration:
                 ProjectName: !Ref CodeBuildProject
@@ -333,7 +330,7 @@ Resources:
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
-                Version: 1
+                Version: '1'
                 Provider: S3
               Configuration:
                 BucketName: !Ref BuildArtifactsBucket
@@ -345,7 +342,7 @@ Resources:
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
-                Version: 1
+                Version: '1'
                 Provider: S3
               Configuration:
                 BucketName: !Ref BuildArtifactsBucket
@@ -369,7 +366,7 @@ Resources:
               ActionTypeId:
                 Category: Source
                 Owner: AWS
-                Version: 1
+                Version: '1'
                 Provider: S3
               OutputArtifacts:
                 - Name: BuildOutput
@@ -381,7 +378,7 @@ Resources:
               ActionTypeId:
                 Category: Source
                 Owner: AWS
-                Version: 1
+                Version: '1'
                 Provider: S3
               OutputArtifacts:
                 - Name: App
@@ -393,7 +390,7 @@ Resources:
               ActionTypeId:
                 Category: Source
                 Owner: AWS
-                Version: 1
+                Version: '1'
                 Provider: S3
               OutputArtifacts:
                 - Name: IntegrationTemplate
@@ -405,7 +402,7 @@ Resources:
               ActionTypeId:
                 Category: Source
                 Owner: AWS
-                Version: 1
+                Version: '1'
                 Provider: S3
               OutputArtifacts:
                 - Name: StagingTemplate
@@ -417,7 +414,7 @@ Resources:
               ActionTypeId:
                 Category: Source
                 Owner: AWS
-                Version: 1
+                Version: '1'
                 Provider: S3
               OutputArtifacts:
                 - Name: ProductionTemplate
@@ -431,7 +428,7 @@ Resources:
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
-                Version: 1
+                Version: '1'
                 Provider: CloudFormation
               Configuration:
                 ActionMode: CREATE_UPDATE
@@ -471,7 +468,7 @@ Resources:
               ActionTypeId:
                 Category: Test
                 Owner: AWS
-                Version: 1
+                Version: '1'
                 Provider: CodeBuild
               Configuration:
                 ProjectName: !Ref CodeBuildProjectTest
@@ -484,7 +481,7 @@ Resources:
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
-                Version: 1
+                Version: '1'
                 Provider: CloudFormation
               Configuration:
                 ActionMode: CREATE_UPDATE

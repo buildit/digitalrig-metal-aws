@@ -11,10 +11,6 @@ Parameters:
     Description: VPC Cidr Block
     Type: String
 
-  Environment:
-    Description: Stack environment
-    Type: String
-
   FoundationStackName:
     Description: Foundation Stack Name
     Type: String

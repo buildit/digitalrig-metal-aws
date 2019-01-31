@@ -14,7 +14,7 @@ Parameters:
 
   Ami:
     Description: The AMI to use for the bastion
-    Type: String
+    Type: AWS::EC2::Image::Id
 
   InstanceType:
     Type: String
@@ -32,6 +32,7 @@ Parameters:
   IngressCidr:
     Description: The IP source CIDR to allow to SSH to Bastion
     Type: String
+    AllowedPattern: '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$'
 
 Resources:
   SecurityGroup:
@@ -56,7 +57,7 @@ Resources:
         - Key: Name
           Value: !Sub "${AWS::StackName}--Bastion"
       NetworkInterfaces:
-        - AssociatePublicIpAddress: "true"
+        - AssociatePublicIpAddress: true
           SubnetId:
             Fn::ImportValue: !Sub "${FoundationStackName}--SubnetPublicA"
           DeviceIndex: "0"
@@ -64,11 +65,10 @@ Resources:
             - Fn::ImportValue: !Sub "${ComputeStackName}--AppSecurityGroup"
             - !Ref SecurityGroup
       UserData:
-        Fn::Base64:
-          !Sub |
-            #!/bin/bash
-            yum -y update
-            yum -y install mysql
+        Fn::Base64: |
+          #!/bin/bash
+          yum -y update
+          yum -y install mysql
 
 Outputs:
   BastionSshCommand:

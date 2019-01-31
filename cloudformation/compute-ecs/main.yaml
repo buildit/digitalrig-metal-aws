@@ -56,7 +56,7 @@ Resources:
       SecurityGroupIngress:
         - SourceSecurityGroupId:
             Fn::ImportValue: !Sub "${FoundationStackName}--ALB--SG"
-          IpProtocol: -1
+          IpProtocol: '-1'
       VpcId:
         Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
 
@@ -67,15 +67,12 @@ Resources:
 
   EcsEc2Hosts:
     Condition: CreateEcsEc2Hosts
-    DependsOn:
-      - Cluster
-      - SecurityGroup
     Type: AWS::CloudFormation::Stack
     Properties:
       Parameters:
         Environment: !Ref Environment
         FoundationStackName: !Ref FoundationStackName
-        ClusterName: !Sub ${AWS::StackName}-ECSCluster
+        ClusterName: !Ref Cluster
         SecurityGroup: !GetAtt SecurityGroup.GroupId
         ClusterMaxSize: !Ref ClusterMaxSize
         InstanceType: !Ref InstanceType

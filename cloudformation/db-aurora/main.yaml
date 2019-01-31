@@ -204,14 +204,11 @@ Resources:
 
   DbProvisionedHosts:
     Condition: CreateDbProvisionedHosts
-    DependsOn:
-      - DatabaseCluster
     Type: AWS::CloudFormation::Stack
     Properties:
       Parameters:
         FoundationStackName: !Ref FoundationStackName
         InstanceType: !Ref InstanceType
-        Environment: !Ref Environment
         DatabaseCluster: !Ref DatabaseCluster
         DatabaseSubnetGroup: !Ref DatabaseSubnetGroup
         Replication: !FindInMap [ EnvironmentMap, !Ref Environment, Replication ]

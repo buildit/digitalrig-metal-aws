@@ -20,14 +20,6 @@ Parameters:
       - db.r4.4xlarge
       - db.r4.8xlarge
 
-  Environment:
-    Description: Stack environment
-    Type: String
-    AllowedValues:
-      - integration
-      - staging
-      - production
-
   DatabaseCluster:
     Type: String
 

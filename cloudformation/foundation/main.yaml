@@ -68,7 +68,6 @@ Resources:
     Properties:
       Parameters:
         CidrBlock: !FindInMap [ EnvironmentToCidr, !Ref Environment, CidrBlock ]
-        Environment: !Ref Environment
         FoundationStackName: !Sub ${AWS::StackName}
         Region: !Sub ${AWS::Region}
         SubnetPrivateCidrBlocks: !FindInMap [ EnvironmentToCidr, !Ref Environment, SubnetPrivateCidrBlocks ]
@@ -82,7 +81,6 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Properties:
       Parameters:
-        Environment: !Ref Environment
         FoundationStackName: !Sub ${AWS::StackName}
         PublicDomainName: !Ref PublicDomainName
       TemplateURL: !Sub https://s3.amazonaws.com/${FoundationBucket}/templates/dns.yaml
