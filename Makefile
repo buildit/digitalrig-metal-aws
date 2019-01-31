@@ -1,20 +1,25 @@
 include .make
 
-export DOMAIN ?= example.tld
-export KEY_NAME ?= ""
 export OWNER ?= rig-test-bucket
 export PROFILE ?= default
 export PROJECT ?= projectname
 export REGION ?= us-east-1
 export REPO_BRANCH ?= master
-export DOMAIN_CERT ?= ""
 export DATABASE_NAME ?= ${PROJECT}
+export CONTAINER_MEMORY ?= 512 #smallest FARGATE value
+export HEALTH_CHECK_PATH = /
 
 export AWS_PROFILE=${PROFILE}
 export AWS_REGION=${REGION}
 
 export SUBDOMAIN ?= ${REPO}
-export DB_HOST_TYPE = $(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/db/DB_HOST_TYPE --output json | jq -r '.Parameter.Value')
+export KEY_NAME := $(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/KEY_NAME --output json | jq -r '.Parameter.Value')
+export DOMAIN := $(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/DOMAIN --output json | jq -r '.Parameter.Value')
+export DOMAIN_CERT := $(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/DOMAIN_CERT --output json | jq -r '.Parameter.Value')
+export DB_TYPE := $(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/db/DB_TYPE --output json | jq -r '.Parameter.Value')
+export DB_HOST_TYPE := $(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/db/DB_HOST_TYPE --output json | jq -r '.Parameter.Value')
+export EMAIL_ADDRESS := $(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/EMAIL_ADDRESS --output json | jq -r '.Parameter.Value')
+export SLACK_WEBHOOK := $(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/SLACK_WEBHOOK --output json | jq -r '.Parameter.Value')
 
 create-foundation-deps:
 	@echo "Create Foundation S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}"
@@ -67,45 +72,59 @@ delete-compute-deps:
 		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}
 
 create-db-deps:
-ifneq (${DB_HOST_TYPE}, none)
-	@echo "Create DB S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}"
-	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}" --region "${REGION}"  2>/dev/null || \
-		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}  --region "${REGION}" # DB configs
+ifneq (${DB_TYPE}, none)
+	@echo "Create DB S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.db-${DB_TYPE}.${ENV}"
+	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.db-${DB_TYPE}.${ENV}" --region "${REGION}"  2>/dev/null || \
+		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.db-${DB_TYPE}.${ENV}  --region "${REGION}" # DB configs
 	sleep 60
-	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
+	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.db-${DB_TYPE}.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
 endif
 
 delete-db-deps:
-ifneq (${DB_HOST_TYPE}, none)
-	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}" --region "${REGION}" 2>/dev/null && \
-		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV} && \
-		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}
+ifneq (${DB_TYPE}, none)
+	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.db-${DB_TYPE}.${ENV}" --region "${REGION}" 2>/dev/null && \
+		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.db-${DB_TYPE}.${ENV} && \
+		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.db-${DB_TYPE}.${ENV}
 endif
 
 create-deps: check-existing-riglet
+	@echo "Set/update Project-wide SSM parameters: /${OWNER}/${PROJECT}"
+	@read -p 'SSH Key Name: (<ENTER> will keep existing) ' KEY_NAME; \
+	        [ -z $$KEY_NAME ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/KEY_NAME" --description "SSH Key Name" --type "String" --value "$$KEY_NAME" --overwrite
+	@read -p 'Domain Name: (<ENTER> will keep existing) ' DOMAIN; \
+	        [ -z $$DOMAIN ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/DOMAIN" --description "Domain Name" --type "String" --value "$$DOMAIN" --overwrite
+	@read -p 'Domain Cert ID (UUID): (<ENTER> will keep existing) ' DOMAIN_CERT; \
+	        [ -z $$DOMAIN_CERT ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/DOMAIN_CERT" --description "Domain Cert Name" --type "String" --value "$$DOMAIN_CERT	" --overwrite
+	@read -p 'Notification Email Address (optional): (<ENTER> will keep existing) ' EMAIL_ADDRESS; \
+	        [ -z $$EMAIL_ADDRESS ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/EMAIL_ADDRESS" --description "Notification Email Address" --type "String" --value "$$EMAIL_ADDRESS	" --overwrite
+	@read -p 'Notification Slack Webhook (optional): (<ENTER> will keep existing) ' SLACK_WEBHOOK; \
+	        [ -z $$SLACK_WEBHOOK ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/SLACK_WEBHOOK" --description "Notification Slack Webhook" --type "String" --value "$$SLACK_WEBHOOK	" --overwrite
+	@echo ""
+	@echo "Set/update Build SSM parameters: /${OWNER}/${PROJECT}/build"
+	@read -p 'GitHub OAuth Token: (<ENTER> will keep existing) ' REPO_TOKEN; \
+	        [ -z $$REPO_TOKEN ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/build/REPO_TOKEN" --description "GitHub Repo Token" --type "SecureString" --value "$$REPO_TOKEN" --overwrite
+	@echo ""
 	@echo "Set/update Compute SSM parameters: /${OWNER}/${PROJECT}/compute"
 	@read -p 'ECS Host Type (EC2 or FARGATE): (<ENTER> will keep existing) ' ECS_HOST_TYPE; \
 	        [ -z $$ECS_HOST_TYPE ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/compute/ECS_HOST_TYPE" --description "ECS Host Type" --type "String" --value "$$ECS_HOST_TYPE" --overwrite
 	@echo ""
 	@echo "Set/update DB SSM parameters: /${OWNER}/${PROJECT}/db"
-	@read -p 'DB Host Type (provisioned or serverless or none): (<ENTER> will keep existing) ' DB_HOST_TYPE; \
+	@read -p 'DB Type (aurora or couch or none): (<ENTER> will keep existing) ' DB_TYPE; \
+	        [ -z $$DB_TYPE ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/DB_TYPE" --description "DB Type" --type "String" --value "$$DB_TYPE" --overwrite
+	@read -p 'DB Aurora Host Type (provisioned or serverless): (<ENTER> will keep existing) ' DB_HOST_TYPE; \
 	        [ -z $$DB_HOST_TYPE ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/DB_HOST_TYPE" --description "DB Host Type" --type "String" --value "$$DB_HOST_TYPE" --overwrite
-	@echo ""
-	@echo "Set/update SSM build secrets and parameters: /${OWNER}/${PROJECT}/build"
-	@read -p 'GitHub OAuth Token: (<ENTER> will keep existing) ' REPO_TOKEN; \
-	        [ -z $$REPO_TOKEN ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/build/REPO_TOKEN" --description "GitHub Repo Token" --type "SecureString" --value "$$REPO_TOKEN" --overwrite
 	@echo ""
 	@echo "Set/update INTEGRATION env SSM parameters: /${OWNER}/${PROJECT}/env/integration"
 	@read -p 'Integration Aurora Database Master Password: (<ENTER> will keep existing) ' DB_MASTER_PASSWORD; \
-	        [ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/integration/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (integration)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite
+	        [ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/integration/db/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (integration)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite
 	@echo ""
 	@echo "Set/update STAGING env SSM parameters: /${OWNER}/${PROJECT}/env/staging"
 	@read -p 'Staging Aurora Database Master Password: (<ENTER> will keep existing) ' DB_MASTER_PASSWORD; \
-	        [ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/staging/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (staging)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite
+	        [ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/staging/db/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (staging)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite
 	@echo ""
 	@echo "Set/update PRODUCTION env SSM parameters: /${OWNER}/${PROJECT}/env/production"
 	@read -p 'Production Aurora Database Master Password: (<ENTER> will keep existing) ' DB_MASTER_PASSWORD; \
-	        [ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/production/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (production)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite
+	        [ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/production/db/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (production)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite
 
 check-existing-riglet:
 	@./scripts/protect-riglet.sh ${OWNER}-${PROJECT} ${REGION} list | [ `wc -l` -gt 0 ] && { echo "Riglet '${OWNER}-${PROJECT}' already exists in this region!"; exit 66; } || true
@@ -115,12 +134,18 @@ update-deps: create-deps
 # Destroy dependency S3 buckets, only destroy if empty
 delete-deps:
 	aws ssm delete-parameters --region ${REGION} --names \
-		"/${OWNER}/${PROJECT}/compute/ECS_HOST_TYPE" \
-		"/${OWNER}/${PROJECT}/db/DB_HOST_TYPE" \
+		"/${OWNER}/${PROJECT}/KEY_NAME" \
+		"/${OWNER}/${PROJECT}/DOMAIN" \
+		"/${OWNER}/${PROJECT}/DOMAIN_CERT" \
+		"/${OWNER}/${PROJECT}/EMAIL_ADDRESS" \
+		"/${OWNER}/${PROJECT}/SLACK_WEBHOOK" \
 		"/${OWNER}/${PROJECT}/build/REPO_TOKEN" \
-		"/${OWNER}/${PROJECT}/db/integration/DB_MASTER_PASSWORD" \
-		"/${OWNER}/${PROJECT}/db/staging/DB_MASTER_PASSWORD" \
-		"/${OWNER}/${PROJECT}/db/production/DB_MASTER_PASSWORD"
+		"/${OWNER}/${PROJECT}/compute/ECS_HOST_TYPE" \
+		"/${OWNER}/${PROJECT}/db/DB_TYPE" \
+		"/${OWNER}/${PROJECT}/db/DB_HOST_TYPE" \
+		"/${OWNER}/${PROJECT}/env/integration/db/DB_MASTER_PASSWORD" \
+		"/${OWNER}/${PROJECT}/env/staging/db/DB_MASTER_PASSWORD" \
+		"/${OWNER}/${PROJECT}/env/production/db/DB_MASTER_PASSWORD"
 
 ## Creates Foundation and Build
 
@@ -166,25 +191,45 @@ create-compute: create-compute-deps upload-compute
 
 ## Create new CF db stack
 create-db: create-db-deps upload-db
-ifneq (${DB_HOST_TYPE}, none)
-	@echo "Creating ${OWNER}-${PROJECT}-${ENV}-db-aurora stack"
-	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-db-aurora" \
+ifeq (${DB_TYPE}, aurora)
+	@echo "Creating ${OWNER}-${PROJECT}-${ENV}-db-${DB_TYPE} stack"
+	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-db-${DB_TYPE}" \
 								--region ${REGION} \
 								--disable-rollback \
-		--template-body "file://cloudformation/db-aurora/main.yaml" \
+		--template-body "file://cloudformation/db-${DB_TYPE}/main.yaml" \
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameters \
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
 			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
-			"ParameterKey=MasterPassword,ParameterValue=\"$(shell aws ssm get-parameter --region ${REGION}  --output json --name /${OWNER}/${PROJECT}/db/${ENV}/DB_MASTER_PASSWORD --with-decryption | jq -r '.Parameter.Value')\"" \
+			"ParameterKey=MasterPassword,ParameterValue=\"$(shell aws ssm get-parameter --region ${REGION}  --output json --name /${OWNER}/${PROJECT}/env/${ENV}/db/DB_MASTER_PASSWORD --with-decryption | jq -r '.Parameter.Value')\"" \
 			"ParameterKey=DatabaseName,ParameterValue=${DATABASE_NAME}" \
 			"ParameterKey=DbHostType,ParameterValue=/${OWNER}/${PROJECT}/db/DB_HOST_TYPE" \
-			"ParameterKey=DbBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}" \
+			"ParameterKey=DbBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.db-${DB_TYPE}.${ENV}" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
-	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-db-aurora" --region ${REGION}
+	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-db-${DB_TYPE}" --region ${REGION}
+endif
+ifeq (${DB_TYPE}, couch)
+	@echo "Creating ${OWNER}-${PROJECT}-${ENV}-db-${DB_TYPE} stack"
+	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-db-${DB_TYPE}" \
+								--region ${REGION} \
+								--disable-rollback \
+		--template-body "file://cloudformation/db-${DB_TYPE}/main.yaml" \
+		--capabilities CAPABILITY_NAMED_IAM \
+		--parameters \
+			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
+			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
+			"ParameterKey=Environment,ParameterValue=${ENV}" \
+			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
+		--tags \
+			"Key=Owner,Value=${OWNER}" \
+			"Key=Project,Value=${PROJECT}"
+	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-db-${DB_TYPE}" --region ${REGION}
+endif
+ifeq (${DB_TYPE}, none)
+	@echo "Skip DB creation"
 endif
 
 ## Create new CF environment stacks
@@ -217,6 +262,7 @@ create-build: create-build-deps upload-build upload-lambdas
 			"ParameterKey=Project,ParameterValue=${PROJECT}" \
 			"ParameterKey=Owner,ParameterValue=${OWNER}" \
 			"ParameterKey=EcsHostType,ParameterValue=/${OWNER}/${PROJECT}/compute/ECS_HOST_TYPE" \
+			"ParameterKey=HealthCheckPath,ParameterValue=${HEALTH_CHECK_PATH}" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
@@ -307,24 +353,43 @@ update-compute: upload-compute
 	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" --region ${REGION}
 
 update-db: upload-db
-ifneq (${DB_HOST_TYPE}, none)
-	@echo "Updating ${OWNER}-${PROJECT}-${ENV}-db-aurora stack"
-	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-db-aurora" \
+ifeq (${DB_TYPE}, aurora)
+	@echo "Updating ${OWNER}-${PROJECT}-${ENV}-db-${DB_TYPE} stack"
+	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-db-${DB_TYPE}" \
 								--region ${REGION} \
-		--template-body "file://cloudformation/db-aurora/main.yaml" \
+		--template-body "file://cloudformation/db-${DB_TYPE}/main.yaml" \
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameters \
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
 			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
-			"ParameterKey=MasterPassword,ParameterValue=\"$(shell aws ssm get-parameter --region ${REGION} --output json --name /${OWNER}/${PROJECT}/db/${ENV}/DB_MASTER_PASSWORD --with-decryption | jq -r '.Parameter.Value')\"" \
+			"ParameterKey=MasterPassword,ParameterValue=\"$(shell aws ssm get-parameter --region ${REGION} --output json --name /${OWNER}/${PROJECT}/env/${ENV}/db/DB_MASTER_PASSWORD --with-decryption | jq -r '.Parameter.Value')\"" \
 			"ParameterKey=DatabaseName,ParameterValue=${DATABASE_NAME}" \
 			"ParameterKey=DbHostType,ParameterValue=/${OWNER}/${PROJECT}/db/DB_HOST_TYPE" \
-			"ParameterKey=DbBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}" \
+			"ParameterKey=DbBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.db-${DB_TYPE}.${ENV}" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
-	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-db-aurora" --region ${REGION}
+	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-db-${DB_TYPE}" --region ${REGION}
+endif
+ifeq (${DB_TYPE}, couch)
+	@echo "Updating ${OWNER}-${PROJECT}-${ENV}-db-${DB_TYPE} stack"
+	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-db-${DB_TYPE}" \
+								--region ${REGION} \
+		--template-body "file://cloudformation/db-${DB_TYPE}/main.yaml" \
+		--capabilities CAPABILITY_NAMED_IAM \
+		--parameters \
+			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
+			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
+			"ParameterKey=Environment,ParameterValue=${ENV}" \
+			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
+		--tags \
+			"Key=Owner,Value=${OWNER}" \
+			"Key=Project,Value=${PROJECT}"
+	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-db-${DB_TYPE}" --region ${REGION}
+endif
+ifeq (${DB_TYPE}, none)
+	@echo "Skip DB update"
 endif
 
 ## Update CF environment stacks
@@ -356,6 +421,7 @@ update-build: upload-build upload-lambdas
 			"ParameterKey=Project,ParameterValue=${PROJECT}" \
 			"ParameterKey=Owner,ParameterValue=${OWNER}" \
 			"ParameterKey=EcsHostType,ParameterValue=/${OWNER}/${PROJECT}/compute/ECS_HOST_TYPE" \
+			"ParameterKey=HealthCheckPath,ParameterValue=${HEALTH_CHECK_PATH}" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
@@ -424,7 +490,7 @@ outputs-compute:
 status-db:
 	@aws cloudformation describe-stacks \
                 --region ${REGION} \
-		--stack-name "${OWNER}-${PROJECT}-${ENV}-db-aurora" \
+		--stack-name "${OWNER}-${PROJECT}-${ENV}-db-${DB_TYPE}" \
 		--output json \
 		--query "Stacks[][StackStatus] | []" | jq
 
@@ -432,7 +498,7 @@ status-db:
 outputs-db:
 	@aws cloudformation describe-stacks \
                 --region ${REGION} \
-		--stack-name "${OWNER}-${PROJECT}-${ENV}-db-aurora" \
+		--stack-name "${OWNER}-${PROJECT}-${ENV}-db-${DB_TYPE}" \
 		--output json \
 		--query "Stacks[][Outputs] | []" | jq
 
@@ -511,10 +577,10 @@ delete-compute: delete-compute-stack delete-compute-deps
 
 ## Deletes the DB CF stack
 delete-db-stack:
-ifneq (${DB_HOST_TYPE}, none)
+ifneq (${DB_TYPE}, none)
 	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the ${ENV} DB Stack?"; then \
-		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-${ENV}-db-aurora"; \
-		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-db-aurora" --region ${REGION}; \
+		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-${ENV}-db-${DB_TYPE}"; \
+		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-db-${DB_TYPE}" --region ${REGION}; \
 	fi
 endif
 
@@ -568,8 +634,8 @@ upload-compute:
 	@aws s3 cp --recursive cloudformation/compute-ecs/ s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}/templates/
 
 upload-db:
-ifneq (${DB_HOST_TYPE}, none)
-	@aws s3 cp --recursive cloudformation/db-aurora/ s3://rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}/templates/
+ifneq (${DB_TYPE}, none)
+	@aws s3 cp --recursive cloudformation/db-${DB_TYPE}/ s3://rig.${OWNER}.${PROJECT}.${REGION}.db-${DB_TYPE}.${ENV}/templates/
 endif
 
 ## Upload Build CF Templates
@@ -599,12 +665,6 @@ check-env:
 ifndef OWNER
 	$(error OWNER is undefined, should be in file .make)
 endif
-ifndef DOMAIN
-	$(error DOMAIN is undefined, should be in file .make)
-endif
-ifndef KEY_NAME
-	$(error KEY_NAME is undefined, should be in file .make)
-endif
 ifndef PROFILE
 	$(error PROFILE is undefined, should be in file .make)
 endif
@@ -614,8 +674,17 @@ endif
 ifndef REGION
 	$(error REGION is undefined, should be in file .make)
 endif
+ifndef DOMAIN
+	$(error DOMAIN is undefined, should be in the SSM parameter store)
+endif
 ifndef DOMAIN_CERT
-	$(error DOMAIN_CERT is undefined, should be in file .make)
+	$(error DOMAIN_CERT is undefined, should be in the SSM parameter store)
+endif
+ifndef KEY_NAME
+	$(error KEY_NAME is undefined, should be in the SSM parameter store)
+endif
+ifndef DB_TYPE
+	$(error DB_TYPE is undefined, should be in the SSM parameter store)
 endif
 	@echo "All required ENV vars set"
 

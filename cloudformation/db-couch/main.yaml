@@ -1,0 +1,192 @@
+---
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Database subnets and instance.
+
+Parameters:
+  FoundationStackName:
+    Description: Foundation Stack Name
+    Type: String
+
+  ComputeStackName:
+    Description: Compute Stack Name
+    Type: String
+
+  InstanceType:
+    Type: String
+    Default: t2.small
+    AllowedValues:
+      - t2.small
+      - t2.medium
+      - t2.large
+      - t2.xlarge
+
+  SshKeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+
+  Environment:
+    Description: Stack environment
+    Type: String
+
+Mappings:
+  EnvironmentToCidr:
+    integration:
+      DbSubnetCidrBlocks: ["10.1.100.0/24","10.1.110.0/24"]
+    staging:
+      DbSubnetCidrBlocks: ["10.2.100.0/24","10.2.110.0/24"]
+    production:
+      DbSubnetCidrBlocks: ["10.3.100.0/24","10.3.110.0/24"]
+
+  AWSRegionToCouchAMI:
+    us-east-1:
+      default: ami-e687579c
+      integration: ami-e687579c
+      staging: ami-e687579c
+      production: ami-e687579c
+    us-west-2:
+      default: ami-54e1222c
+      integration: ami-54e1222c
+      staging: ami-54e1222c
+      production: ami-54e1222c
+
+Resources:
+  DbSubnetPrivateA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
+      CidrBlock: !Select [ 0, !FindInMap [ EnvironmentToCidr, !Ref Environment, DbSubnetCidrBlocks ] ]
+      AvailabilityZone: !Select [ 0, !GetAZs ]
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}--DbSubnetPrivateA"
+
+  DbSubnetPrivateB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
+      CidrBlock: !Select [ 1, !FindInMap [ EnvironmentToCidr, !Ref Environment, DbSubnetCidrBlocks ] ]
+      AvailabilityZone: !Select [ 1, !GetAZs ]
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}--DbSubnetPrivateB"
+
+  DbSubnetPrivateARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: DbSubnetPrivateA
+      RouteTableId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--RouteTablePrivateA"
+
+  DbSubnetPrivateBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: DbSubnetPrivateB
+      RouteTableId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--RouteTablePrivateB"
+
+  DatabaseInternalDns:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--InternalDns"
+      Comment: DNS for CouchDb.
+      RecordSets:
+      - Name: !Join
+          - '.'
+          - - "couch"
+            - Fn::ImportValue: !Sub "${FoundationStackName}--InternalHostedZoneName"
+        Type: CNAME
+        TTL: '300'
+        ResourceRecords:
+        - !GetAtt DatabaseEc2Instance.PrivateDnsName
+
+  DatabaseSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: !Sub ${AWS::StackName}-db
+      SecurityGroupIngress:
+        - SourceSecurityGroupId:
+            Fn::ImportValue: !Sub "${ComputeStackName}--AppSecurityGroup"
+          IpProtocol: TCP
+          FromPort: 5984
+          ToPort: 5984
+      VpcId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
+
+  DatabaseBackupBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+
+  DatabaseEc2Role:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "ec2.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        -
+          PolicyName: "root"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action: ["s3:Put*", "s3:List*"]
+                Resource: [!Sub "${DatabaseBackupBucket.Arn}", !Sub "${DatabaseBackupBucket.Arn}/*"]
+
+  DatabaseEc2RoleInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref DatabaseEc2Role
+
+  # This instance and backup approach works because the AMI is assumed to be
+  # a CouchDB AMI from the prior Twig riglet, with AWS CLI installed, too.
+  # TODO:  create everything "from scratch" in the UserData script, including
+  # restore from S3 (optional).
+  DatabaseEc2Instance:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId: !FindInMap [ AWSRegionToCouchAMI, !Ref "AWS::Region", !Ref Environment ]
+      KeyName: !Ref SshKeyName
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref DatabaseEc2RoleInstanceProfile
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}--CouchDb"
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: "false"
+          SubnetId: !Ref DbSubnetPrivateB
+          DeviceIndex: "0"
+          GroupSet:
+            - Ref: DatabaseSecurityGroup
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash
+            echo "0  2  *  *  * root  aws s3 sync /usr/local/var/lib/couchdb/ s3://${DatabaseBackupBucket} --region ${AWS::Region} --delete" > /etc/cron.d/couchdb-backup
+
+Outputs:
+  DatabaseInternalDns:
+    Description: Database internal DNS endpoint
+    Value: !Ref DatabaseInternalDns
+
+  DatabaseBackupBucket:
+    Description: The bucket created for backups of database files.
+    Value: !Ref DatabaseBackupBucket

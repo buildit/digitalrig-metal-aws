@@ -70,17 +70,30 @@ Parameters:
     Description: ECS Launch type - EC2 or Fargate
     Type: AWS::SSM::Parameter::Name
 
+  CodeBuildComputeType:
+    Type: String
+    Default: BUILD_GENERAL1_SMALL
+    AllowedValues:
+      - BUILD_GENERAL1_SMALL
+      - BUILD_GENERAL1_MEDIUM
+      - BUILD_GENERAL1_LARGE
+
+  HealthCheckPath:
+    Description: HTTP request path used for health checks against related container.
+    Type: String
+    Default: /
+
 Conditions:
   WebhookSpecified: !Not [ !Equals [ !Ref SlackWebhook, "" ] ]
 
 Mappings:
   EnvironmentDefaults:
-   integration:
-     DesiredTasks: 1
-   staging:
-     DesiredTasks: 2
-   production:
-     DesiredTasks: 2
+    integration:
+      DesiredTasks: 1
+    staging:
+      DesiredTasks: 2
+    production:
+      DesiredTasks: 2
 
 Resources:
   Repository:
@@ -166,7 +179,7 @@ Resources:
                 Effect: Allow
                 Action:
                   - ssm:GetParameters
-  
+
 
   CodePipelineServiceRole:
     Type: AWS::IAM::Role
@@ -225,7 +238,7 @@ Resources:
       Source:
         Type: "CODEPIPELINE"
       Environment:
-        ComputeType: "BUILD_GENERAL1_SMALL"
+        ComputeType: !Ref CodeBuildComputeType
         Image: "aws/codebuild/docker:18.09.0"
         Type: "LINUX_CONTAINER"
         EnvironmentVariables:
@@ -252,7 +265,7 @@ Resources:
         Type: "CODEPIPELINE"
         BuildSpec: buildspec.e2e.yml
       Environment:
-        ComputeType: "BUILD_GENERAL1_SMALL"
+        ComputeType: !Ref CodeBuildComputeType
         Image: "aws/codebuild/docker:18.09.0"
         Type: "LINUX_CONTAINER"
         EnvironmentVariables:
@@ -266,6 +279,8 @@ Resources:
             Value: !Sub "${SsmNamespacePrefix}/build"
           - Name: SSM_ENV_NAMESPACE
             Value: !Sub "${SsmNamespacePrefix}/env/integration"
+          - Name: SSM_APPENV_NAMESPACE
+            Value: !Sub "${SsmNamespacePrefix}/env/integration/app/${ApplicationName}"
           - Name: REPORTS_BUCKET
             Value: !Sub "s3://${BuildArtifactsBucket}/${AWS::StackName}/reports"
       Name: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, !Ref GitHubBranch, 'e2e', 'test' ] ]
@@ -296,7 +311,7 @@ Resources:
               OutputArtifacts:
                 - Name: App
               RunOrder: 1
-          
+
         - Name: Build
           Actions:
             - Name: Build
@@ -347,10 +362,6 @@ Resources:
       ArtifactStore:
         Type: S3
         Location: !Ref BuildArtifactsBucket
-      DisableInboundStageTransitions: 
-        - 
-          StageName: Integration
-          Reason: "Pipeline disabled on initial deployment"
       Stages:
         - Name: Source
           Actions:
@@ -377,7 +388,7 @@ Resources:
               Configuration:
                 S3Bucket: !Ref BuildArtifactsBucket
                 S3ObjectKey: !Sub "${ApplicationName}/latestbuild/src.zip"
-              RunOrder: 1    
+              RunOrder: 1
             - Name: AppIntegrationTemplate
               ActionTypeId:
                 Category: Source
@@ -389,7 +400,7 @@ Resources:
               Configuration:
                 S3Bucket: !Sub "${InfraDevBucketBase}.integration"
                 S3ObjectKey: "templates/templates.zip"
-              RunOrder: 1     
+              RunOrder: 1
             - Name: AppStagingTemplate
               ActionTypeId:
                 Category: Source
@@ -444,8 +455,9 @@ Resources:
                       "ContainerMemory": "${ContainerMemory}",
                       "TaskDesiredCount": "${EnvironmentTaskDesiredCount}",
                       "ListenerRulePriority": "${ListenerRulePriority}",
-                      "SsmEnvironmentNamespace": "${SsmNamespacePrefix}/env/integration",
+                      "SsmEnvironmentNamespace": "${SsmNamespacePrefix}/env/integration/app/${ApplicationName}",
                       "EcsHostType": "${EcsHostType}",
+                      "HealthCheckPath": "${HealthCheckPath}",
                       "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                     }
                   - EnvironmentTaskDesiredCount: !FindInMap [ EnvironmentDefaults, integration, DesiredTasks ]
@@ -496,8 +508,9 @@ Resources:
                       "ContainerMemory": "${ContainerMemory}",
                       "TaskDesiredCount": "${EnvironmentTaskDesiredCount}",
                       "ListenerRulePriority": "${ListenerRulePriority}",
-                      "SsmEnvironmentNamespace": "${SsmNamespacePrefix}/env/staging",
+                      "SsmEnvironmentNamespace": "${SsmNamespacePrefix}/env/staging/app/${ApplicationName}",
                       "EcsHostType": "${EcsHostType}",
+                      "HealthCheckPath": "${HealthCheckPath}",
                       "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                     }
                   - EnvironmentTaskDesiredCount: !FindInMap [ EnvironmentDefaults, staging, DesiredTasks ]
@@ -540,8 +553,9 @@ Resources:
                       "ContainerMemory": "${ContainerMemory}",
                       "TaskDesiredCount": "${EnvironmentTaskDesiredCount}",
                       "ListenerRulePriority": "${ListenerRulePriority}",
-                      "SsmEnvironmentNamespace": "${SsmNamespacePrefix}/env/production",
+                      "SsmEnvironmentNamespace": "${SsmNamespacePrefix}/env/production/app/${ApplicationName}",
                       "EcsHostType": "${EcsHostType}",
+                      "HealthCheckPath": "${HealthCheckPath}",
                       "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                     }
                   - EnvironmentTaskDesiredCount: !FindInMap [ EnvironmentDefaults, production, DesiredTasks ]
