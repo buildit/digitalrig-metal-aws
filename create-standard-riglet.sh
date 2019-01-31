@@ -21,7 +21,7 @@ then
   make create-deps &&
   createEnvironment integration &&
   createEnvironment staging &&
-  createEnvironment production &&
+  createEnvironment production
   # echo "Y" | make create-build REPO=bookit-api CONTAINER_PORT=8080 CONTAINER_MEMORY=512 LISTENER_RULE_PRIORITY=300 &&
   # echo "Y" | make create-build REPO=bookit-client-react SUBDOMAIN=bookit CONTAINER_PORT=4200 CONTAINER_MEMORY=128 LISTENER_RULE_PRIORITY=200
 fi
