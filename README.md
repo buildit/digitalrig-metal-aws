@@ -186,7 +186,7 @@ We're currently using AWS RDS Aurora MySQL 5.6.x
 
 | Application                 | ContainerPort  | ContainerMemory  | ListenerRulePriority | Subdomain
 | :-------------              | :------------- | :--------------  | :-------------       | :--------
-| APP REPO (e.g. bookit-api)  | (e.g. 8080)    | in MB (e.g. 512) | for ALB (e.g. 300)  | usually default to repo name (see create-standard-riglet.sh)
+| APP REPO (e.g. bookit-api)  | (e.g. 8080)    | in MB (default: 512) | for ALB (e.g. 300)  | usually default to repo name (see create-standard-riglet.sh)
 
 ---
 
@@ -338,9 +338,9 @@ the cloud, sort-of).  So what we're doing in this step is creating the build pip
 * Run `make create-build REPO=<repo_name> CONTAINER_PORT=<port> CONTAINER_MEMORY=<MiB> LISTENER_RULE_PRIORITY=<priority>`, same options for status: `make status-build` and outputs `make outputs-build`
   * REPO is the repo that hangs off buildit organization (e.g "bookit-api")
   * CONTAINER_PORT is the port that the application exposes (e.g. 8080)
-  * CONTAINER_MEMORY is the amount of memory (in MiB) to reserve for this application (e.g. 512).
   * LISTENER_RULE_PRIORITY is the priority of the the rule that gets created in the ALB.  While these won't ever conflict, ALB requires a unique number across all apps that share the ALB.  See [Application specifics](#application-specifics)
-  * HEALTH_CHECK_PATH is the path that is checked by the target group to determine health of the container
+  * (optional) CONTAINER_MEMORY is the amount of memory (in MiB) to reserve for this application.  Defaults to 512.
+  * (optional) HEALTH_CHECK_PATH is the path that is checked by the target group to determine health of the container.  Defaults to `'/'`
   * (optional) REPO_BRANCH is the branch name for the repo - MUST NOT CONTAIN SLASHES!
   * (optional) SUBDOMAIN is placed in front of the DOMAIN configured in the .make file when generating ALB listener rules.  Defaults to REPO.
 
