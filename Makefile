@@ -162,7 +162,6 @@ update-deps: create-deps
 
 # Destroy dependency S3 buckets, only destroy if empty
 delete-deps:
-	@aws resource-groups delete-group --group-name "${OWNER}.${PROJECT}"
 	@aws ssm delete-parameters --region ${REGION} --names \
 		"/${OWNER}/${PROJECT}/KEY_NAME" \
 		"/${OWNER}/${PROJECT}/DOMAIN" \
@@ -628,6 +627,8 @@ delete-foundation-stack:
 	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the ${ENV} Foundation Stack?"; then \
 		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation"; \
 		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation" --region ${REGION}; \
+		@aws resource-groups delete-group --group-name "${OWNER}.${PROJECT}.${ENV}"
+		@aws resource-groups delete-group --group-name "${OWNER}.${PROJECT}"
 	fi
 
 delete-foundation: delete-foundation-stack delete-foundation-deps
