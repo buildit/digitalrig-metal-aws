@@ -458,6 +458,13 @@ Resources:
                       "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                     }
                   - EnvironmentTaskDesiredCount: !FindInMap [ EnvironmentDefaults, integration, DesiredTasks ]
+                Tags:
+                  - Key: "Owner"
+                    Value: !Sub "${Owner}"
+                  - Key: "Project"
+                    Value: !Sub "${Project}"
+                  - Key: "Environment"
+                    Value: "integration"
               InputArtifacts:
                 - Name: IntegrationTemplate
                 - Name: BuildOutput
@@ -511,6 +518,13 @@ Resources:
                       "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                     }
                   - EnvironmentTaskDesiredCount: !FindInMap [ EnvironmentDefaults, staging, DesiredTasks ]
+                Tags:
+                  - Key: "Owner"
+                    Value: !Sub "${Owner}"
+                  - Key: "Project"
+                    Value: !Sub "${Project}"
+                  - Key: "Environment"
+                    Value: "staging"
               InputArtifacts:
                 - Name: StagingTemplate
                 - Name: BuildOutput
@@ -556,6 +570,13 @@ Resources:
                       "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                     }
                   - EnvironmentTaskDesiredCount: !FindInMap [ EnvironmentDefaults, production, DesiredTasks ]
+                Tags:
+                  - Key: "Owner"
+                    Value: !Sub "${Owner}"
+                  - Key: "Project"
+                    Value: !Sub "${Project}"
+                  - Key: "Environment"
+                    Value: "production"
               RunOrder: 1
             - Name: ApproveChangeSet
               ActionTypeId:
