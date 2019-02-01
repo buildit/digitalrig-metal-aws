@@ -97,63 +97,63 @@ create-deps: check-existing-riglet
 	@read -p 'SSH Key Name: (<ENTER> will keep existing) ' KEY_NAME; \
 	        [ -z $$KEY_NAME ] || \
 					(aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/KEY_NAME" --description "SSH Key Name" --type "String" --value "$$KEY_NAME" --overwrite && \
-					aws ssm add-tags-to-resource --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/KEY_NAME" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}")
+					aws ssm add-tags-to-resource --region ${REGION} --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/KEY_NAME" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}")
 	@read -p 'Domain Name: (<ENTER> will keep existing) ' DOMAIN; \
 	        [ -z $$DOMAIN ] || \
 					(aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/DOMAIN" --description "Domain Name" --type "String" --value "$$DOMAIN" --overwrite && \
-					aws ssm add-tags-to-resource --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/DOMAIN" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}")
+					aws ssm add-tags-to-resource --region ${REGION} --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/DOMAIN" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}")
 	@read -p 'Domain Cert ID (UUID): (<ENTER> will keep existing) ' DOMAIN_CERT; \
 	        [ -z $$DOMAIN_CERT ] || \
 					(aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/DOMAIN_CERT" --description "Domain Cert Name" --type "String" --value "$$DOMAIN_CERT	" --overwrite && \
-					aws ssm add-tags-to-resource --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/DOMAIN_CERT" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}")
+					aws ssm add-tags-to-resource --region ${REGION} --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/DOMAIN_CERT" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}")
 	@read -p 'Notification Email Address (optional): (<ENTER> will keep existing) ' EMAIL_ADDRESS; \
 	        [ -z $$EMAIL_ADDRESS ] || \
 					(aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/EMAIL_ADDRESS" --description "Notification Email Address" --type "String" --value "$$EMAIL_ADDRESS	" --overwrite && \
-					aws ssm add-tags-to-resource --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/EMAIL_ADDRESS" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}")
+					aws ssm add-tags-to-resource --region ${REGION} --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/EMAIL_ADDRESS" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}")
 	@read -p 'Notification Slack Webhook (optional): (<ENTER> will keep existing) ' SLACK_WEBHOOK; \
 	        [ -z $$SLACK_WEBHOOK ] || \
 					(aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/SLACK_WEBHOOK" --description "Notification Slack Webhook" --type "String" --value "$$SLACK_WEBHOOK	" --overwrite && \
-					aws ssm add-tags-to-resource --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/SLACK_WEBHOOK" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}")
+					aws ssm add-tags-to-resource --region ${REGION} --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/SLACK_WEBHOOK" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}")
 	@echo ""
 	@echo "Set/update Build SSM parameters: /${OWNER}/${PROJECT}/build"
 	@read -p 'GitHub OAuth Token: (<ENTER> will keep existing) ' REPO_TOKEN; \
 	        [ -z $$REPO_TOKEN ] || \
 					(aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/build/REPO_TOKEN" --description "GitHub Repo Token" --type "SecureString" --value "$$REPO_TOKEN" --overwrite && \
-					aws ssm add-tags-to-resource --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/build/REPO_TOKEN" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}")
+					aws ssm add-tags-to-resource --region ${REGION} --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/build/REPO_TOKEN" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}")
 	@echo ""
 	@echo "Set/update Compute SSM parameters: /${OWNER}/${PROJECT}/compute"
 	@read -p 'ECS Host Type (EC2 or FARGATE): (<ENTER> will keep existing) ' ECS_HOST_TYPE; \
 	        [ -z $$ECS_HOST_TYPE ] || \
 					(aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/compute/ECS_HOST_TYPE" --description "ECS Host Type" --type "String" --value "$$ECS_HOST_TYPE" --overwrite && \
-					aws ssm add-tags-to-resource --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/compute/ECS_HOST_TYPE" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}")
+					aws ssm add-tags-to-resource --region ${REGION} --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/compute/ECS_HOST_TYPE" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}")
 	@echo ""
 	@echo "Set/update DB SSM parameters: /${OWNER}/${PROJECT}/db"
 	@read -p 'DB Type (aurora or couch or none): (<ENTER> will keep existing) ' DB_TYPE; \
 	        [ -z $$DB_TYPE ] || \
 					(aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/DB_TYPE" --description "DB Type" --type "String" --value "$$DB_TYPE" --overwrite && \
-					aws ssm add-tags-to-resource --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/db/DB_TYPE" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}")
+					aws ssm add-tags-to-resource --region ${REGION} --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/db/DB_TYPE" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}")
 	@read -p 'DB Aurora Host Type (provisioned or serverless): (<ENTER> will keep existing) ' DB_HOST_TYPE; \
 	        [ -z $$DB_HOST_TYPE ] || \
 					(aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/DB_HOST_TYPE" --description "DB Host Type" --type "String" --value "$$DB_HOST_TYPE" --overwrite && \
-					aws ssm add-tags-to-resource --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/db/DB_HOST_TYPE" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}")
+					aws ssm add-tags-to-resource --region ${REGION} --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/db/DB_HOST_TYPE" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}")
 	@echo ""
 	@echo "Set/update INTEGRATION env SSM parameters: /${OWNER}/${PROJECT}/env/integration"
 	@read -p 'Integration Aurora Database Master Password: (<ENTER> will keep existing) ' DB_MASTER_PASSWORD; \
 	        [ -z $$DB_MASTER_PASSWORD ] || \
 					(aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/integration/db/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (integration)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite && \
-					aws ssm add-tags-to-resource --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/env/integration/db/DB_MASTER_PASSWORD" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}" "Key=Environment,Value=integration")
+					aws ssm add-tags-to-resource --region ${REGION} --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/env/integration/db/DB_MASTER_PASSWORD" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}" "Key=Environment,Value=integration")
 	@echo ""
 	@echo "Set/update STAGING env SSM parameters: /${OWNER}/${PROJECT}/env/staging"
 	@read -p 'Staging Aurora Database Master Password: (<ENTER> will keep existing) ' DB_MASTER_PASSWORD; \
 	        [ -z $$DB_MASTER_PASSWORD ] || \
 					(aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/staging/db/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (staging)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite && \
-					aws ssm add-tags-to-resource --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/env/staging/db/DB_MASTER_PASSWORD" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}" "Key=Environment,Value=staging")
+					aws ssm add-tags-to-resource --region ${REGION} --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/env/staging/db/DB_MASTER_PASSWORD" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}" "Key=Environment,Value=staging")
 	@echo ""
 	@echo "Set/update PRODUCTION env SSM parameters: /${OWNER}/${PROJECT}/env/production"
 	@read -p 'Production Aurora Database Master Password: (<ENTER> will keep existing) ' DB_MASTER_PASSWORD; \
 	        [ -z $$DB_MASTER_PASSWORD ] || \
 					(aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/production/db/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (production)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite && \
-					aws ssm add-tags-to-resource --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/env/production/db/DB_MASTER_PASSWORD" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}" "Key=Environment,Value=production")
+					aws ssm add-tags-to-resource --region ${REGION} --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/env/production/db/DB_MASTER_PASSWORD" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}" "Key=Environment,Value=production")
 
 check-existing-riglet:
 	@./scripts/protect-riglet.sh ${OWNER}-${PROJECT} ${REGION} list | [ `wc -l` -gt 0 ] && { echo "Riglet '${OWNER}-${PROJECT}' already exists in this region!"; exit 66; } || true
@@ -162,7 +162,8 @@ update-deps: create-deps
 
 # Destroy dependency S3 buckets, only destroy if empty
 delete-deps:
-	aws ssm delete-parameters --region ${REGION} --names \
+	@aws resource-groups delete-group --group-name "${OWNER}.${PROJECT}"
+	@aws ssm delete-parameters --region ${REGION} --names \
 		"/${OWNER}/${PROJECT}/KEY_NAME" \
 		"/${OWNER}/${PROJECT}/DOMAIN" \
 		"/${OWNER}/${PROJECT}/DOMAIN_CERT" \
@@ -207,6 +208,8 @@ endif
 
 ## Creates a new CF stack
 create-foundation: create-foundation-deps upload-foundation
+	@aws resource-groups create-group --name "${OWNER}.${PROJECT}" --resource-query '{"Type":"TAG_FILTERS_1_0", "Query":"{\"ResourceTypeFilters\":[\"AWS::AllSupported\"],\"TagFilters\":[{\"Key\":\"Owner\", \"Values\":[\"${OWNER}\"]},{\"Key\":\"Project\", \"Values\":[\"${PROJECT}\"]}]}"}' --region ${REGION}
+	@aws resource-groups create-group --name "${OWNER}.${PROJECT}.${ENV}" --resource-query '{"Type":"TAG_FILTERS_1_0", "Query":"{\"ResourceTypeFilters\":[\"AWS::AllSupported\"],\"TagFilters\":[{\"Key\":\"Owner\", \"Values\":[\"${OWNER}\"]},{\"Key\":\"Project\", \"Values\":[\"${PROJECT}\"]},{\"Key\":\"Environment\", \"Values\":[\"${ENV}\"]}]}"}' --region ${REGION}
 	@echo "Creating ${OWNER}-${PROJECT}-${ENV}-foundation stack"
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation" \
                 --region ${REGION} \
