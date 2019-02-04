@@ -10,6 +10,7 @@ read -p 'AWS Profile ("default"): ' profile
 read -p 'Project ("reference"): ' project
 read -p 'AWS region ("us-east-1"): ' region
 read -p 'AWS Certificate Manager GUID (NO DEFAULT.  Use buildit.tools cert GUID for your region.): ' domain_guid
+read -p 'Master Database Name: ' database
 echo
 
 cat << EOF > .make
@@ -20,8 +21,10 @@ PROFILE = ${profile:-default}
 PROJECT = ${project:-reference}
 REGION = ${region:-us-east-1}
 DOMAIN_CERT = ${domain_guid}
+DATABASE_NAME = ${database:-AwsRigDb}
 EOF
 
 echo 'Saved .make!'
 echo 'Please verify with "make check-env"!'
 echo
+
