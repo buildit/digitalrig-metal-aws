@@ -28,11 +28,13 @@ create-foundation-deps:
 	sleep 60
 	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
 	@aws s3api put-bucket-tagging --bucket "rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" --tagging "TagSet=[{Key=Owner,Value=${OWNER}},{Key=Project,Value=${PROJECT}},{Key=Environment,Value=${ENV}}]" --region "${REGION}"
+	@aws resource-groups create-group --name "${OWNER}.${PROJECT}.${ENV}" --resource-query '{"Type":"TAG_FILTERS_1_0", "Query":"{\"ResourceTypeFilters\":[\"AWS::AllSupported\"],\"TagFilters\":[{\"Key\":\"Owner\", \"Values\":[\"${OWNER}\"]},{\"Key\":\"Project\", \"Values\":[\"${PROJECT}\"]},{\"Key\":\"Environment\", \"Values\":[\"${ENV}\"]}]}"}' --region ${REGION}
 
 delete-foundation-deps:
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" --region "${REGION}" 2>/dev/null && \
 		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV} && \
 		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}
+	@aws resource-groups delete-group --group-name "${OWNER}.${PROJECT}.${ENV}"
 
 create-build-deps:
 	@echo "Create Build Artifacts S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.build"
@@ -68,7 +70,7 @@ create-compute-deps:
 		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}  --region "${REGION}" # Compute configs
 	sleep 60
 	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
-	@aws s3api put-bucket-tagging --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute.${ENV}" --tagging "TagSet=[{Key=Owner,Value=${OWNER}},{Key=Project,Value=${PROJECT}},{Key=Environment,Value=${ENV}}]" --region "${REGION}"
+	@aws s3api put-bucket-tagging --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" --tagging "TagSet=[{Key=Owner,Value=${OWNER}},{Key=Project,Value=${PROJECT}},{Key=Environment,Value=${ENV}}]" --region "${REGION}"
 
 delete-compute-deps:
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" --region "${REGION}" 2>/dev/null && \
@@ -93,6 +95,7 @@ ifneq (${DB_TYPE}, none)
 endif
 
 create-deps: check-existing-riglet
+	@aws resource-groups create-group --name "${OWNER}.${PROJECT}" --resource-query '{"Type":"TAG_FILTERS_1_0", "Query":"{\"ResourceTypeFilters\":[\"AWS::AllSupported\"],\"TagFilters\":[{\"Key\":\"Owner\", \"Values\":[\"${OWNER}\"]},{\"Key\":\"Project\", \"Values\":[\"${PROJECT}\"]}]}"}' --region ${REGION}
 	@echo "Set/update Project-wide SSM parameters: /${OWNER}/${PROJECT}"
 	@read -p 'SSH Key Name: (<ENTER> will keep existing) ' KEY_NAME; \
 	        [ -z $$KEY_NAME ] || \
@@ -160,8 +163,7 @@ check-existing-riglet:
 
 update-deps: create-deps
 
-# Destroy dependency S3 buckets, only destroy if empty
-delete-deps:
+delete-deps: check-existing-riglet
 	@aws ssm delete-parameters --region ${REGION} --names \
 		"/${OWNER}/${PROJECT}/KEY_NAME" \
 		"/${OWNER}/${PROJECT}/DOMAIN" \
@@ -171,10 +173,12 @@ delete-deps:
 		"/${OWNER}/${PROJECT}/build/REPO_TOKEN" \
 		"/${OWNER}/${PROJECT}/compute/ECS_HOST_TYPE" \
 		"/${OWNER}/${PROJECT}/db/DB_TYPE" \
-		"/${OWNER}/${PROJECT}/db/DB_HOST_TYPE" \
+		"/${OWNER}/${PROJECT}/db/DB_HOST_TYPE"
+	@aws ssm delete-parameters --region ${REGION} --names \
 		"/${OWNER}/${PROJECT}/env/integration/db/DB_MASTER_PASSWORD" \
 		"/${OWNER}/${PROJECT}/env/staging/db/DB_MASTER_PASSWORD" \
 		"/${OWNER}/${PROJECT}/env/production/db/DB_MASTER_PASSWORD"
+	@aws resource-groups delete-group --group-name "${OWNER}.${PROJECT}"
 
 check-env:
 ifndef OWNER
@@ -207,8 +211,6 @@ endif
 
 ## Creates a new CF stack
 create-foundation: create-foundation-deps upload-foundation
-	@aws resource-groups create-group --name "${OWNER}.${PROJECT}" --resource-query '{"Type":"TAG_FILTERS_1_0", "Query":"{\"ResourceTypeFilters\":[\"AWS::AllSupported\"],\"TagFilters\":[{\"Key\":\"Owner\", \"Values\":[\"${OWNER}\"]},{\"Key\":\"Project\", \"Values\":[\"${PROJECT}\"]}]}"}' --region ${REGION}
-	@aws resource-groups create-group --name "${OWNER}.${PROJECT}.${ENV}" --resource-query '{"Type":"TAG_FILTERS_1_0", "Query":"{\"ResourceTypeFilters\":[\"AWS::AllSupported\"],\"TagFilters\":[{\"Key\":\"Owner\", \"Values\":[\"${OWNER}\"]},{\"Key\":\"Project\", \"Values\":[\"${PROJECT}\"]},{\"Key\":\"Environment\", \"Values\":[\"${ENV}\"]}]}"}' --region ${REGION}
 	@echo "Creating ${OWNER}-${PROJECT}-${ENV}-foundation stack"
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation" \
                 --region ${REGION} \
@@ -627,8 +629,6 @@ delete-foundation-stack:
 	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the ${ENV} Foundation Stack?"; then \
 		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation"; \
 		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation" --region ${REGION}; \
-		@aws resource-groups delete-group --group-name "${OWNER}.${PROJECT}.${ENV}"
-		@aws resource-groups delete-group --group-name "${OWNER}.${PROJECT}"
 	fi
 
 delete-foundation: delete-foundation-stack delete-foundation-deps
