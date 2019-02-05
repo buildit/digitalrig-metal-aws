@@ -5,7 +5,6 @@ export PROFILE ?= default
 export PROJECT ?= projectname
 export REGION ?= us-east-1
 export REPO_BRANCH ?= master
-export DATABASE_NAME ?= ${PROJECT}
 export CONTAINER_MEMORY ?= 512 #smallest FARGATE value
 export HEALTH_CHECK_PATH = /
 
@@ -18,6 +17,7 @@ export DOMAIN := $(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/DOMAI
 export DOMAIN_CERT := $(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/DOMAIN_CERT --output json | jq -r '.Parameter.Value')
 export DB_TYPE := $(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/db/DB_TYPE --output json | jq -r '.Parameter.Value')
 export DB_HOST_TYPE := $(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/db/DB_HOST_TYPE --output json | jq -r '.Parameter.Value')
+export DB_NAME := $(shell aws ssm get-parameter --name /${OWNER}${PROJECT}/db/DB_NAME --output json | jq -r '.Parameter.Value')
 export EMAIL_ADDRESS := $(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/EMAIL_ADDRESS --output json | jq -r '.Parameter.Value')
 export SLACK_WEBHOOK := $(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/SLACK_WEBHOOK --output json | jq -r '.Parameter.Value')
 
@@ -133,8 +133,12 @@ create-deps: check-existing-riglet
 	@echo "Set/update DB SSM parameters: /${OWNER}/${PROJECT}/db"
 	@read -p 'DB Type (aurora or couch or none): (<ENTER> will keep existing) ' DB_TYPE; \
 	        [ -z $$DB_TYPE ] || \
-					(aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/DB_TYPE" --description "DB Type" --type "String" --value "$$DB_TYPE" --overwrite && \
-					aws ssm add-tags-to-resource --region ${REGION} --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/db/DB_TYPE" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}")
+				(aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/DB_TYPE" --description "DB Type" --type "String" --value "$$DB_TYPE" --overwrite && \
+				aws ssm add-tags-to-resource --region ${REGION} --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/db/DB_TYPE" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}")
+	@read -p 'DB Name: ' DB_NAME; \
+			[ -z $$DB_NAME ] || \
+			 	(aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/DB_NAME" --description "DB Name" --type "String" --value "$$DB_NAME" --overwrite	&& \
+			 	aws ssm add-tags-to-resource --region ${REGION} --resource-type "Parameter" --resource-id "/${OWNDER}/${PROJECT}/db/DB_NAME" --tags "Key=Owner,Value=${OWNER}" "key=Project,Value=${PROJECT}")	
 	@read -p 'DB Aurora Host Type (provisioned or serverless): (<ENTER> will keep existing) ' DB_HOST_TYPE; \
 	        [ -z $$DB_HOST_TYPE ] || \
 					(aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/DB_HOST_TYPE" --description "DB Host Type" --type "String" --value "$$DB_HOST_TYPE" --overwrite && \
@@ -264,7 +268,7 @@ ifeq (${DB_TYPE}, aurora)
 			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
 			"ParameterKey=MasterPassword,ParameterValue=\"$(shell aws ssm get-parameter --region ${REGION}  --output json --name /${OWNER}/${PROJECT}/env/${ENV}/db/DB_MASTER_PASSWORD --with-decryption | jq -r '.Parameter.Value')\"" \
-			"ParameterKey=DatabaseName,ParameterValue=${DATABASE_NAME}" \
+			"ParameterKey=DatabaseName,ParameterValue=${DB_NAME}" \
 			"ParameterKey=DbHostType,ParameterValue=/${OWNER}/${PROJECT}/db/DB_HOST_TYPE" \
 			"ParameterKey=DbBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.db-${DB_TYPE}.${ENV}" \
 		--tags \
@@ -429,7 +433,7 @@ ifeq (${DB_TYPE}, aurora)
 			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
 			"ParameterKey=MasterPassword,ParameterValue=\"$(shell aws ssm get-parameter --region ${REGION} --output json --name /${OWNER}/${PROJECT}/env/${ENV}/db/DB_MASTER_PASSWORD --with-decryption | jq -r '.Parameter.Value')\"" \
-			"ParameterKey=DatabaseName,ParameterValue=${DATABASE_NAME}" \
+			"ParameterKey=DatabaseName,ParameterValue=${DB_NAME}" \
 			"ParameterKey=DbHostType,ParameterValue=/${OWNER}/${PROJECT}/db/DB_HOST_TYPE" \
 			"ParameterKey=DbBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.db-${DB_TYPE}.${ENV}" \
 		--tags \
