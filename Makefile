@@ -11,7 +11,7 @@ export HEALTH_CHECK_PATH = /
 
 export AWS_PROFILE=${PROFILE}
 export AWS_REGION=${REGION}
-
+export GITHUB_OWNER ?= buildit
 export SUBDOMAIN ?= ${REPO}
 export KEY_NAME := $(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/KEY_NAME --output json | jq -r '.Parameter.Value')
 export DOMAIN := $(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/DOMAIN --output json | jq -r '.Parameter.Value')
