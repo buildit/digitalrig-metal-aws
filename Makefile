@@ -10,7 +10,7 @@ export HEALTH_CHECK_PATH = /
 
 export AWS_PROFILE=${PROFILE}
 export AWS_REGION=${REGION}
-
+export GITHUB_OWNER ?= buildit
 export SUBDOMAIN ?= ${REPO}
 export KEY_NAME := $(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/KEY_NAME --output json | jq -r '.Parameter.Value')
 export DOMAIN := $(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/DOMAIN --output json | jq -r '.Parameter.Value')
@@ -327,7 +327,7 @@ create-build: create-build-deps upload-build upload-lambdas
 			"ParameterKey=SsmNamespacePrefix,ParameterValue=/${OWNER}/${PROJECT}" \
 			"ParameterKey=SlackWebhook,ParameterValue=${SLACK_WEBHOOK}" \
 			"ParameterKey=Project,ParameterValue=${PROJECT}" \
-			"ParameterKey=Owner,ParameterValue=${OWNER}" \
+			"ParameterKey=GitHubOwner,ParameterValue=${GITHUB_OWNER}" \
 			"ParameterKey=EcsHostType,ParameterValue=/${OWNER}/${PROJECT}/compute/ECS_HOST_TYPE" \
 			"ParameterKey=HealthCheckPath,ParameterValue=${HEALTH_CHECK_PATH}" \
 		--tags \
