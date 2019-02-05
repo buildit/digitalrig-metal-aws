@@ -323,7 +323,7 @@ create-build: create-build-deps upload-build upload-lambdas
 			"ParameterKey=SsmNamespacePrefix,ParameterValue=/${OWNER}/${PROJECT}" \
 			"ParameterKey=SlackWebhook,ParameterValue=${SLACK_WEBHOOK}" \
 			"ParameterKey=Project,ParameterValue=${PROJECT}" \
-			"ParameterKey=Owner,ParameterValue=${OWNER}" \
+			"ParameterKey=GitHubOwner,ParameterValue=${GITHUB_OWNER}" \
 			"ParameterKey=EcsHostType,ParameterValue=/${OWNER}/${PROJECT}/compute/ECS_HOST_TYPE" \
 			"ParameterKey=HealthCheckPath,ParameterValue=${HEALTH_CHECK_PATH}" \
 		--tags \
