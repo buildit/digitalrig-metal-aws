@@ -2,4 +2,4 @@ OWNER = <jdoe>
 PROFILE = default
 PROJECT = <projectname>
 REGION = <us-east-1>
-DATABASE_NAME = <AwsRigDb>
+
