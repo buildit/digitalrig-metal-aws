@@ -90,8 +90,14 @@ Those executing these instructions must have basic-to-intermediate knowledge of 
 To complete these instructions successfully you'll need:
 
 * AWS CLI (v1.11.57 minimum), and credentials working: `brew install awscli && aws configure`.
+  * If you're going to configure a Slack Webhook and you're on AWS CLI 1.x, ensure this setting in your `~/.aws/config` file.
+    ``` ini
+    # ~/.aws/config
+    [default]
+    cli_follow_urlparam = false
+    ```
 * The `jq` utility, which is used often to interpret JSON responses from the AWS CLI: `brew install jq`.
-* Ensure that you have your own private key pair setup on AWS - the name of the key will be used in the .make file. See [here](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html#having-ec2-create-your-key-pair) for instructions.
+* Ensure that you have your own private key pair setup on AWS - the name of the key will be used in the SSM parameter setup. See [here](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html#having-ec2-create-your-key-pair) for instructions.
 
 ### Creating a new Riglet
 
