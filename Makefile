@@ -17,7 +17,7 @@ export DOMAIN := $(shell aws ssm get-parameter --region ${REGION} --name /${OWNE
 export DOMAIN_CERT := $(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/DOMAIN_CERT --output json | jq -r '.Parameter.Value')
 export DB_TYPE := $(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/db/DB_TYPE --output json | jq -r '.Parameter.Value')
 export DB_HOST_TYPE := $(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/db/DB_HOST_TYPE --output json | jq -r '.Parameter.Value')
-export DB_NAME := $(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}${PROJECT}/db/DB_NAME --output json | jq -r '.Parameter.Value')
+export DB_NAME := $(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/db/DB_NAME --output json | jq -r '.Parameter.Value')
 export EMAIL_ADDRESS := $(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/EMAIL_ADDRESS --output json | jq -r '.Parameter.Value')
 export SLACK_WEBHOOK := $(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/SLACK_WEBHOOK --output json | jq -r '.Parameter.Value')
 
