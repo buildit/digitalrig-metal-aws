@@ -12,14 +12,14 @@ export AWS_PROFILE=${PROFILE}
 export AWS_REGION=${REGION}
 export GITHUB_OWNER ?= buildit
 export SUBDOMAIN ?= ${REPO}
-export KEY_NAME := $(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/KEY_NAME --output json | jq -r '.Parameter.Value')
-export DOMAIN := $(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/DOMAIN --output json | jq -r '.Parameter.Value')
-export DOMAIN_CERT := $(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/DOMAIN_CERT --output json | jq -r '.Parameter.Value')
-export DB_TYPE := $(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/db/DB_TYPE --output json | jq -r '.Parameter.Value')
-export DB_HOST_TYPE := $(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/db/DB_HOST_TYPE --output json | jq -r '.Parameter.Value')
-export DB_NAME := $(shell aws ssm get-parameter --name /${OWNER}${PROJECT}/db/DB_NAME --output json | jq -r '.Parameter.Value')
-export EMAIL_ADDRESS := $(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/EMAIL_ADDRESS --output json | jq -r '.Parameter.Value')
-export SLACK_WEBHOOK := $(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/SLACK_WEBHOOK --output json | jq -r '.Parameter.Value')
+export KEY_NAME := $(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/KEY_NAME --output json | jq -r '.Parameter.Value')
+export DOMAIN := $(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/DOMAIN --output json | jq -r '.Parameter.Value')
+export DOMAIN_CERT := $(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/DOMAIN_CERT --output json | jq -r '.Parameter.Value')
+export DB_TYPE := $(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/db/DB_TYPE --output json | jq -r '.Parameter.Value')
+export DB_HOST_TYPE := $(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/db/DB_HOST_TYPE --output json | jq -r '.Parameter.Value')
+export DB_NAME := $(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}${PROJECT}/db/DB_NAME --output json | jq -r '.Parameter.Value')
+export EMAIL_ADDRESS := $(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/EMAIL_ADDRESS --output json | jq -r '.Parameter.Value')
+export SLACK_WEBHOOK := $(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/SLACK_WEBHOOK --output json | jq -r '.Parameter.Value')
 
 create-foundation-deps:
 	@echo "Create Foundation S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}"
@@ -480,7 +480,7 @@ update-build: upload-build upload-lambdas
 			"ParameterKey=BuildArtifactsBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.build" \
 			"ParameterKey=GitHubRepo,ParameterValue=${REPO}" \
 			"ParameterKey=GitHubBranch,ParameterValue=${REPO_BRANCH}" \
-			"ParameterKey=GitHubToken,ParameterValue=$(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/build/REPO_TOKEN --output json --with-decryption | jq -r '.Parameter.Value')" \
+			"ParameterKey=GitHubToken,ParameterValue=$(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/build/REPO_TOKEN --output json --with-decryption | jq -r '.Parameter.Value')" \
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
 			"ParameterKey=Owner,ParameterValue=${OWNER}" \
 			"ParameterKey=Subdomain,ParameterValue=${SUBDOMAIN}" \
