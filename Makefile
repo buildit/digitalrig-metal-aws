@@ -107,15 +107,15 @@ create-deps: check-existing-riglet
 					aws ssm add-tags-to-resource --region ${REGION} --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/DOMAIN" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}")
 	@read -p 'Domain Cert ID (UUID): (<ENTER> will keep existing) ' DOMAIN_CERT; \
 	        [ -z $$DOMAIN_CERT ] || \
-					(aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/DOMAIN_CERT" --description "Domain Cert Name" --type "String" --value "$$DOMAIN_CERT	" --overwrite && \
+					(aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/DOMAIN_CERT" --description "Domain Cert Name" --type "String" --value "$$DOMAIN_CERT" --overwrite && \
 					aws ssm add-tags-to-resource --region ${REGION} --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/DOMAIN_CERT" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}")
 	@read -p 'Notification Email Address (optional): (<ENTER> will keep existing) ' EMAIL_ADDRESS; \
 	        [ -z $$EMAIL_ADDRESS ] || \
-					(aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/EMAIL_ADDRESS" --description "Notification Email Address" --type "String" --value "$$EMAIL_ADDRESS	" --overwrite && \
+					(aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/EMAIL_ADDRESS" --description "Notification Email Address" --type "String" --value "$$EMAIL_ADDRESS" --overwrite && \
 					aws ssm add-tags-to-resource --region ${REGION} --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/EMAIL_ADDRESS" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}")
 	@read -p 'Notification Slack Webhook (optional): (<ENTER> will keep existing) ' SLACK_WEBHOOK; \
 	        [ -z $$SLACK_WEBHOOK ] || \
-					(aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/SLACK_WEBHOOK" --description "Notification Slack Webhook" --type "String" --value "$$SLACK_WEBHOOK	" --overwrite && \
+					(aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/SLACK_WEBHOOK" --description "Notification Slack Webhook" --type "String" --value "$$SLACK_WEBHOOK" --overwrite && \
 					aws ssm add-tags-to-resource --region ${REGION} --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/SLACK_WEBHOOK" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}")
 	@echo ""
 	@echo "Set/update Build SSM parameters: /${OWNER}/${PROJECT}/build"
@@ -132,13 +132,13 @@ create-deps: check-existing-riglet
 	@echo ""
 	@echo "Set/update DB SSM parameters: /${OWNER}/${PROJECT}/db"
 	@read -p 'DB Type (aurora or couch or none): (<ENTER> will keep existing) ' DB_TYPE; \
-	        [ -z $$DB_TYPE ] || \
-				(aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/DB_TYPE" --description "DB Type" --type "String" --value "$$DB_TYPE" --overwrite && \
-				aws ssm add-tags-to-resource --region ${REGION} --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/db/DB_TYPE" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}")
+					[ -z $$DB_TYPE ] || \
+					(aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/DB_TYPE" --description "DB Type" --type "String" --value "$$DB_TYPE" --overwrite && \
+					aws ssm add-tags-to-resource --region ${REGION} --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/db/DB_TYPE" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}")
 	@read -p 'DB Name: ' DB_NAME; \
-			[ -z $$DB_NAME ] || \
-			 	(aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/DB_NAME" --description "DB Name" --type "String" --value "$$DB_NAME" --overwrite	&& \
-			 	aws ssm add-tags-to-resource --region ${REGION} --resource-type "Parameter" --resource-id "/${OWNDER}/${PROJECT}/db/DB_NAME" --tags "Key=Owner,Value=${OWNER}" "key=Project,Value=${PROJECT}")	
+					[ -z $$DB_NAME ] || \
+					(aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/DB_NAME" --description "DB Name" --type "String" --value "$$DB_NAME" --overwrite	&& \
+					aws ssm add-tags-to-resource --region ${REGION} --resource-type "Parameter" --resource-id "/${OWNER}/${PROJECT}/db/DB_NAME" --tags "Key=Owner,Value=${OWNER}" "Key=Project,Value=${PROJECT}")
 	@read -p 'DB Aurora Host Type (provisioned or serverless): (<ENTER> will keep existing) ' DB_HOST_TYPE; \
 	        [ -z $$DB_HOST_TYPE ] || \
 					(aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/DB_HOST_TYPE" --description "DB Host Type" --type "String" --value "$$DB_HOST_TYPE" --overwrite && \
@@ -182,7 +182,7 @@ delete-deps: check-existing-riglet
 		"/${OWNER}/${PROJECT}/env/integration/db/DB_MASTER_PASSWORD" \
 		"/${OWNER}/${PROJECT}/env/staging/db/DB_MASTER_PASSWORD" \
 		"/${OWNER}/${PROJECT}/env/production/db/DB_MASTER_PASSWORD"
-	@aws resource-groups delete-group --group-name "${OWNER}.${PROJECT}"
+	@aws resource-groups delete-group --group-name "${OWNER}.${PROJECT}" --region "${REGION}"
 
 check-env:
 ifndef OWNER
