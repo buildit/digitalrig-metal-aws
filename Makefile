@@ -46,6 +46,24 @@ create-build-deps:
 	sleep 60
 	@aws s3 website s3://rig.${OWNER}.${PROJECT}.${REGION}.build/ --index-document index.html --region "${REGION}"
 
+set-app-environment:
+	rm -rf $$REPO; \
+	git clone https\://github.com/$$GITHUB_OWNER/$$REPO; \
+	while read -u 3 LINE; do \
+	  ENV_KEY=`echo $$LINE | cut -d' ' -f1 `; \
+	  DESCRIPTION=`echo $$LINE | cut -d' ' -f 2- `; \
+	  echo \\nApplication Environment \(Integration\): $$ENV_KEY\: $$DESCRIPTION\:; \
+	  read ENV_RESPONSE; \
+	  aws ssm put-parameter --region $$REGION --name "/${OWNER}/${PROJECT}/env/integration/$$ENV_KEY" --description "$$DESCRIPTION (integration)" --type "SecureString" --value "$$ENV_RESPONSE" --overwrite; \
+	  echo \\nApplication Environment \(Staging\): $$ENV_KEY\: $$DESCRIPTION\:; \
+	  read ENV_RESPONSE; \
+	  aws ssm put-parameter --region $$REGION --name "/${OWNER}/${PROJECT}/env/staging/$$ENV_KEY" --description "$$DESCRIPTION (staging)" --type "SecureString" --value "$$ENV_RESPONSE" --overwrite; \
+	  echo echo \\nApplication Environment \(Production\): $$ENV_KEY\: $$DESCRIPTION\:; \
+	  read ENV_RESPONSE; \
+	  aws ssm put-parameter --region $$REGION --name "/${OWNER}/${PROJECT}/env/production/$$ENV_KEY" --description "$$DESCRIPTION (production)" --type "SecureString" --value "$$ENV_RESPONSE" --overwrite; \
+	  done 3< $$REPO/environment.declarations; \
+	rm -rf $$REPO
+
 delete-build-deps:
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build" --region "${REGION}" 2>/dev/null && \
 		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.build && \
@@ -303,7 +321,7 @@ endif
 create-environment: create-foundation create-compute create-db create-app-deps upload-app
 
 ## Create new CF Build pipeline stack
-create-build: create-build-deps upload-build upload-lambdas
+create-build: set-app-environment create-build-deps upload-build upload-lambdas
 	@echo "Creating ${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH} stack"
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
