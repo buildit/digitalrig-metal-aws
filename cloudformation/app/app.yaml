@@ -183,6 +183,8 @@ Resources:
       - Key: "Name"
         Value: !Sub "${Owner}-${Environment}-${ApplicationName}.${PublicDomainName}."
 
+# TODO it seems this must be in us-east-1
+# Probably use https://docs.aws.amazon.com/codepipeline/latest/userguide/actions-create-cross-region.html
   ExternalHealthAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:

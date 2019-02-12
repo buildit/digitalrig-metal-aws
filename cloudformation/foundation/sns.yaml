@@ -17,6 +17,8 @@ Conditions:
   EmailSpecified: !Not [ !Equals [ !Ref EmailAddress, "" ] ]
 
 Resources:
+# TODO essentially for R53 metrics this needs to be in us-east-1 (or create 2nd in us-east-1)
+# if we add infra pipeline, maybe https://docs.aws.amazon.com/codepipeline/latest/userguide/actions-create-cross-region.html
   SnsTopic:
     Type: "AWS::SNS::Topic"
     Properties:
