@@ -34,8 +34,6 @@ The major components of this riglet are:
       * Polls for changes to the branch
       * Executes the CodeBuild
       * Builds Docker image
-
-     & "app" S3 buckets
     * Deploy Pipeline
       * Listens for recently completed builds and updated application templates in S3
       * Creates/Updates the "app" stack below for the integration environment
