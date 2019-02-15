@@ -64,7 +64,7 @@ Single Environment (more detail):
 
 CodePipeline (more detail):
 
-![Code Pipeline](docs/architecture/diagrams/idigitalrig-metal-aws-riglet-codepipeline-detail.png)
+![Code Pipeline](docs/architecture/diagrams/digitalrig-metal-aws-riglet-codepipeline-detail.png)
 
 ## Architectural Decisions
 
