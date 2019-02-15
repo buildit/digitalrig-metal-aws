@@ -56,7 +56,7 @@ The all infrastructure are set up and maintained using AWS CloudFormation.  Code
 
 The whole shebang:
 
-![alt text](https://raw.githubusercontent.com/buildit/digitalrig-metal-aws/master/docs/architecture/diagrams/digitalrig-metal-aws.png)
+![alt text](docs/architecture/diagrams/digitalrig-metal-aws-riglet-aws-hi-level.png)
 
 Single Environment (more detail):
 
@@ -64,7 +64,7 @@ Single Environment (more detail):
 
 CodePipeline (more detail):
 
-![Code Pipeline](https://raw.githubusercontent.com/buildit/digitalrig-metal-aws/master/docs/architecture/diagrams/digitalrig-metal-aws-riglet-aws-hi-level.png)
+![Code Pipeline](docs/architecture/diagrams/idigitalrig-metal-aws-riglet-codepipeline-detail.png)
 
 ## Architectural Decisions
 
