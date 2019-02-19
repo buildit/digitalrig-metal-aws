@@ -1,12 +1,12 @@
 # AWS Bare Metal Rig
 
-This codebase contains code to create and maintain a CloudFormation, AWS CodePipeline/CodeBuild/CodeDeploy powered Rig on AWS.
+This codebase contains code to create and maintain a CloudFormation, AWS CodePipeline/CodeBuild/CodeDeploy powered Rig on AWS.  This riglet is based completely on AWS technologies.  The idea is that it should require nothing but the AWS CLI to fire up an operational riglet with appropriate environments and a ready-to-execute build pipeline.
 
 This repository is intended to be a reference implementation and act as the latest and greatest version of the AWS Bare Metal Rig
 
 ## The big picture(s)
 
-Bookit was rebooted in Sept 2017, and we decided to start from scratch.  We did decide to use the Bookit Riglet (implementation of Bare Metal Rig) as a starting point however.  As additional features were branched and prototyped, we decided to clone the [bookit-infrastructure](https://github.com/buildit/bookit-infrastructure) and remove any references to Bookit.
+Bookit was rebooted in Sept 2017, and we decided to start from scratch.  We did decide to use the [Bookit Riglet (implementation of Bare Metal Rig)](https://github.com/buildit/bookit-riglet) as a starting point however.  As additional features were branched and prototyped, we decided to clone the [bookit-infrastructure](https://github.com/buildit/bookit-infrastructure) and remove any references to Bookit.
 
 Typically, new projects would clone/fork this repo as a starting point for their own AWS Bare Metal Rig instance.
 
@@ -18,7 +18,7 @@ The major components of this riglet are:
   * a VPC with the appropriate network elements (gateways, NAT)
   * a shared Application Load Balancer (ALB) - listens on ports 80 & 443
   * a shared EC2 Container Server (ECS) Cluster (using either EC2 hosts or Fargate).
-  * an RDS Aurora Database
+  * (optional) an RDS Aurora or CouchDB Database
   * 4 shared S3 buckets to store CloudFormation templates and scripts
     * a "foundation" bucket to store templates associated w/ the foundational stack
     * a "build" bucket to store build artifacts for the CodePipeline below (this is shared across all pipelines)
@@ -60,7 +60,7 @@ The whole shebang:
 
 Single Environment (more detail):
 
-![alt text](https://raw.githubusercontent.com/buildit/digitalrig-metal-aws/master/docs/architecture/diagrams/aws-bare-foundation.png)
+![alt text](docs/architecture/diagrams/aws-bare-foundation.png)
 
 CodePipeline (more detail):
 
@@ -68,7 +68,71 @@ CodePipeline (more detail):
 
 ## Architectural Decisions
 
-We are documenting our decisions [here](../master/docs/architecture/decisions)
+We are documenting our decisions [here](docs/architecture/decisions)
+
+## Architecture specifics
+
+### Foundation
+
+A "standard" riglet starts with a foundation:  three identical _Virtual Private Cloud_s (VPC), each
+representing an _environment_: _integration_ testing, _staging_ and _production_.  Each VPC has separate
+pairs of private subnets for application and database instances, with appropriate NATs and routing to
+give EC2 instances access to the internet.
+
+Into each VPC, the following are allocated:
+
+* a single EC2 instance running CouchDb (launched from a custom AMI)
+* (ECS_HOST_TYPE = ECS) a configurable number of instances to comprise the EC2 Container Service (ECS) cluster
+* (ECS_HOST_TYPE = FARGATE) ECS service/tasks spread across the private subnets
+
+An Application Load Balancer (ALB) is also configured for the VPC.  This ALB is configured at build/deployment
+time to route traffic to the appropriate system.
+
+ALB and application security groups are created is defined to disallow traffic to the ECS cluster from
+anywhere but the ALB, and over appropriate ports.
+
+An SNS "operations" topic is created, with the expectation that pertinent error messages and alarm message
+will be published there. An email address can optionally be subscribed to this topic at foundation creation time.
+
+> Unfortunately, Route53 External Health Check can only be defined in us-east-1, and won't trigger when
+> this riglet runs in any other region.
+
+### Compute Layer
+
+The "compute layer" in this rig is an ECS Cluster.  ECS allows you to deploy arbitrary code in Docker images,
+and ECS handles the allocation of containers to run the images (a process known as "scheduling").
+
+The Docker containers are hosted in what ECS calls "Tasks", and the Tasks are managed by "Services".  A
+Task can be defined to run one or more containers.  
+
+A Service knows what version of a Task's definition is running at a given time, and how many instances
+(desired count) of the Task should be maintained.  The running Tasks are automatically allocated to
+the appropriate ECS cluster member.
+
+### Database Layer
+
+The "database layer" in this rig is optional and can either be RDS Aurora (MySQL compatible) or CouchDb
+deployed on an EC2 instance, running in a dedicated subnet.  The EC2 instance is created from an AMI
+that was created from a running CouchDb instance in the old Rig 2.0 based riglet.  At instantiation time,
+a cron job is defined to back up the database files to an appropriate S3 bucket.
+
+Security groups are created that allow access to the Database only from the application group and only
+over the Database port.
+
+### Build "Layer"
+
+OK, it's not really a "layer", but the final piece of the riglet is the build pipeline.  In this case
+we use AWS CodePipeline and CodeBuild to define and execute the pipeline.  Builds are triggered by
+changes to either the source code of the application(s) or by changes to the Cfn templates that define
+how applications are deployed.
+
+Speaking of application deployments, those are also accomplished using Cfn, but the creation of the
+application Cfn stacks is automated in the build pipelines.  (_Note:_  one will seldom, if ever, create
+an application stack by hand.  However, the capability is there, and might be used to create a load
+testing environment with selected Docker images deployed.)
+
+An SNS "build" topic is created, and the build pipeline is configured to publish CodeBuild success/failure
+messages there. An email address can optionally be subscribed to this topic at foundation creation time.
 
 ---
 
@@ -95,11 +159,13 @@ To complete these instructions successfully you'll need:
 
 * AWS CLI (v1.11.57 minimum), and credentials working: `brew install awscli && aws configure`.
   * If you're going to configure a Slack Webhook and you're on AWS CLI 1.x, ensure this setting in your `~/.aws/config` file.
+
     ``` ini
     # ~/.aws/config
     [default]
     cli_follow_urlparam = false
     ```
+
 * The `jq` utility, which is used often to interpret JSON responses from the AWS CLI: `brew install jq`.
 * Ensure that you have your own private key pair setup on AWS - the name of the key will be used in the SSM parameter setup. See [here](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html#having-ec2-create-your-key-pair) for instructions.
 
@@ -139,6 +205,7 @@ details, which is both a good and bad thing.
     * REPO_TOKEN - personal Github repo token (instructions above)
     * ECS_HOST_TYPE - the ECS hosting type (`EC2` or `FARGATE`)
     * DB_TYPE - the Database type (`aurora` or `couch` or `none`)
+    * (required if DB_TYPE = aurora) DB_NAME - the Database name
     * (required if DB_TYPE = aurora) DB_HOST_TYPE - the hosting type (`provisioned` or `serverless`)
     * (required if DB_TYPE = aurora) DB_MASTER_PASSWORD - the master password (per environment)
 
@@ -184,13 +251,21 @@ Obviously, the templates can be updated if necessary.
 
 ### Database specifics
 
-We're currently using AWS RDS Aurora MySQL 5.6.x
+#### AWS RDS Aurora MySQL 5.6.x
 
 | Environment    | DB URI (internal to VPC)                      | DB Subnets (Private, MultiAZ) |
 | :------------- | :-------------                                | :-------------                |
 | integration    | mysql://aurora.PROJECT.internal/DATABASE_NAME | 10.1.100.0/24,10.1.110.0/24   |
 | staging        | mysql://aurora.PROJECT.internal/DATABASE_NAME | 10.2.100.0/24,10.2.110.0/24   |
 | production     | mysql://aurora.PROJECT.internal/DATABASE_NAME | 10.3.100.0/24,10.3.110.0/24   |
+
+#### CouchDB
+
+| Environment    | DB URI (internal to VPC)             | DB Subnets (Private, SingleAZ) |
+| :------------- | :-------------                       | :-------------                 |
+| integration    | <http://couch.PROJECT.internal:5984> | 10.1.110.0/24                  |
+| staging        | <http://couch.PROJECT.internal:5984> | 10.2.110.0/24                  |
+| production     | <http://couch.PROJECT.internal:5984> | 10.3.110.0/24                  |
 
 ### Application specifics
 
@@ -208,7 +283,7 @@ in specific running riglets later.
 
 For example, production ECS should probably be scaled up, at least horizontally, if only for high availability,
 so increasing the number of cluster instances to at least 2 (and arguably 4) is probably a good idea, as well
-as running a number of ECS Tasks for each bookit-api and bookit-client-react.  ECS automatically distributes the Tasks
+as running a number of ECS Tasks for each application.  ECS automatically distributes the Tasks
 to the ECS cluster instances.
 
 The same goes for the RDS Aurora instance.  We automatically create a replica for production (horizontal scaling).
@@ -255,9 +330,14 @@ And here are the available *database* scaling parameters.
 | Minimum ACU | Vertical      | db-aurora     | MinCapacity |
 | Maximum ACU | Vertical      | db-aurora     | MaxCapacity |
 
-#### CouchDB
+#### CouchDB scaling
 
-TBD
+The only scaling option is vertical:  give it a larger box.  Note that a resize of the instance type
+does not result in any lost data.
+
+| Parameter             | Scaling Style | Stack         | Parameter     |
+| :---                  | :---          | :---          | :---          |
+| Size of Couch Host    | Vertical      | db-couch      | InstanceType  |
 
 ---
 
@@ -301,7 +381,7 @@ regressions without proper testing or notification of what has changed.
 
 We are using CloudWatch for centralized logging.  You can find the logs for each environment and application at [here](https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logs:prefix=buildit)
 
-Alarms are generated when ERROR level logs occur.  They currently get sent to the #book-it-notifications channel
+Alarms are generated when ERROR level logs occur.  They get sent to the SLACK_WEBHOOK channel
 
 ---
 
@@ -345,7 +425,7 @@ In this case there's no real "build environment", unless you want to consider AW
 We are using CodePipeline and CodeBuild, which are build _managed services_ run by Amazon (think Jenkins in
 the cloud, sort-of).  So what we're doing in this step is creating the build pipeline(s) for our code repo(s).
 
-* Run `make create-build REPO=<repo_name> CONTAINER_PORT=<port> CONTAINER_MEMORY=<MiB> LISTENER_RULE_PRIORITY=<priority>`, same options for status: `make status-build` and outputs `make outputs-build`
+* Run `make create-build REPO=<repo_name> CONTAINER_PORT=<port> LISTENER_RULE_PRIORITY=<priority>`, same options for status: `make status-build` and outputs `make outputs-build`
   * REPO is the repo that hangs off buildit organization (e.g "bookit-api")
   * CONTAINER_PORT is the port that the application exposes (e.g. 8080)
   * LISTENER_RULE_PRIORITY is the priority of the the rule that gets created in the ALB.  While these won't ever conflict, ALB requires a unique number across all apps that share the ALB.  See [Application specifics](#application-specifics)
