@@ -3,3 +3,4 @@
 /.*_ami_id
 /created-user-out-credentials.json
 \.vscode/database\.json
+.DS_Store
