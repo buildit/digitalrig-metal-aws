@@ -29,15 +29,19 @@ The major components of this riglet are:
     * Installs dependencies (JDK, Node, etc)
     * Executes build (download libraries, build, test, lint, package docker image)
     * Pushes the image to the ECR
-  * a CodePipeline pipeline that executes the following:
-    * Polls for changes to the branch & "app" S3 buckets
-    * Executes the CodeBuild
-    * Creates/Updates the "app" stack below for the integration environment
-      * This also deploys the built image to the ECS cluster
-    * Creates/Updates the "app" stack below for the staging environment
-    * Creates/Updates an "app" stack change set for the production environment
-    * Waits for review/approval
-    * Executes the "app" stack change set which creates/updates/deploys for the production environment
+  * Two CodePipeline pipelines that do the following:
+    * Build Pipeline
+      * Polls for changes to the branch
+      * Executes the CodeBuild
+      * Builds Docker image
+    * Deploy Pipeline
+      * Listens for recently completed builds and updated application templates in S3
+      * Creates/Updates the "app" stack below for the integration environment
+      * This also deploys the built Docker image to the ECS cluster
+      * Creates/Updates the "app" stack below for the staging environment
+      * Creates/Updates an "app" stack change set for the production environment
+      * Waits for review/approval
+      * Executes the "app" stack change set which creates/updates/deploys for the production environment
   * IAM roles to make it all work
 * An "app" stack: 1 stack per branch per repo per environment - requires "foundation" stack to already exist and ECR repository with built images
   * a ALB target group
@@ -52,7 +56,7 @@ The all infrastructure are set up and maintained using AWS CloudFormation.  Code
 
 The whole shebang:
 
-![alt text](https://raw.githubusercontent.com/buildit/digitalrig-metal-aws/master/docs/architecture/diagrams/digitalrig-metal-aws.png)
+![alt text](docs/architecture/diagrams/digitalrig-metal-aws-riglet-aws-hi-level.png)
 
 Single Environment (more detail):
 
@@ -60,7 +64,7 @@ Single Environment (more detail):
 
 CodePipeline (more detail):
 
-![Code Pipeline](https://raw.githubusercontent.com/buildit/digitalrig-metal-aws/master/docs/architecture/diagrams/digitalrig-metal-aws-riglet-aws-hi-level.png)
+![Code Pipeline](docs/architecture/diagrams/digitalrig-metal-aws-riglet-codepipeline-detail.png)
 
 ## Architectural Decisions
 
