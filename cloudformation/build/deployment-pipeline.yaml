@@ -326,19 +326,7 @@ Resources:
               RunOrder: 1
         - Name: WriteOutput
           Actions:
-            - Name: WriteBuildJson
-              ActionTypeId:
-                Category: Deploy
-                Owner: AWS
-                Version: '1'
-                Provider: S3
-              Configuration:
-                BucketName: !Ref BuildArtifactsBucket
-                Extract: false
-                ObjectKey: !Sub "${ApplicationName}/latestbuild/build.json"
-              InputArtifacts:
-                - Name: BuildOutput
-            - Name: WriteSourceOutput
+            - Name: WriteBuildOutput
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
@@ -349,7 +337,7 @@ Resources:
                 Extract: false
                 ObjectKey: !Sub "${ApplicationName}/latestbuild/src.zip"
               InputArtifacts:
-                - Name: App
+                - Name: BuildOutput
 
   DeployPipeline:
     Type: AWS::CodePipeline::Pipeline
@@ -362,18 +350,6 @@ Resources:
       Stages:
         - Name: Source
           Actions:
-            - Name: BuildOutput
-              ActionTypeId:
-                Category: Source
-                Owner: AWS
-                Version: '1'
-                Provider: S3
-              OutputArtifacts:
-                - Name: BuildOutput
-              Configuration:
-                S3Bucket: !Ref BuildArtifactsBucket
-                S3ObjectKey: !Sub "${ApplicationName}/latestbuild/build.json"
-              RunOrder: 1
             - Name: BuildSrc
               ActionTypeId:
                 Category: Source
@@ -455,12 +431,12 @@ Resources:
                       "SsmEnvironmentNamespace": "${SsmNamespacePrefix}/env/integration/app/${ApplicationName}",
                       "EcsHostType": "${EcsHostType}",
                       "HealthCheckPath": "${HealthCheckPath}",
-                      "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
+                      "Tag": { "Fn::GetParam" : [ "App", "build.json", "tag" ] }
                     }
                   - EnvironmentTaskDesiredCount: !FindInMap [ EnvironmentDefaults, integration, DesiredTasks ]
               InputArtifacts:
                 - Name: IntegrationTemplate
-                - Name: BuildOutput
+                - Name: App
               OutputArtifacts:
                 - Name: IntegrationEnvironment
               RunOrder: 1
@@ -508,12 +484,12 @@ Resources:
                       "SsmEnvironmentNamespace": "${SsmNamespacePrefix}/env/staging/app/${ApplicationName}",
                       "EcsHostType": "${EcsHostType}",
                       "HealthCheckPath": "${HealthCheckPath}",
-                      "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
+                      "Tag": { "Fn::GetParam" : [ "App", "build.json", "tag" ] }
                     }
                   - EnvironmentTaskDesiredCount: !FindInMap [ EnvironmentDefaults, staging, DesiredTasks ]
               InputArtifacts:
                 - Name: StagingTemplate
-                - Name: BuildOutput
+                - Name: App
               OutputArtifacts:
                 - Name: StagingEnvironment
               RunOrder: 1
@@ -527,7 +503,7 @@ Resources:
                 Version: '1'
               InputArtifacts:
                 - Name: ProductionTemplate
-                - Name: BuildOutput
+                - Name: App
               Configuration:
                 ActionMode: CHANGE_SET_REPLACE
                 RoleArn: !GetAtt CloudFormationExecutionRole.Arn
@@ -553,7 +529,7 @@ Resources:
                       "SsmEnvironmentNamespace": "${SsmNamespacePrefix}/env/production/app/${ApplicationName}",
                       "EcsHostType": "${EcsHostType}",
                       "HealthCheckPath": "${HealthCheckPath}",
-                      "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
+                      "Tag": { "Fn::GetParam" : [ "App", "build.json", "tag" ] }
                     }
                   - EnvironmentTaskDesiredCount: !FindInMap [ EnvironmentDefaults, production, DesiredTasks ]
               RunOrder: 1
